@@ -267,10 +267,11 @@
     async function initAudio() {
         if(audioInitialized) return;
 
-        // Essential for Mobile: Start Context inside user event
+        // --- MOBILE FIX: Direct Start ---
+        // We do NOT use preventDefault here to ensure browser sees this as a user gesture.
         await Tone.start();
         
-        // Double check context state for iOS
+        // Force resume if state is suspended (common on iOS)
         if (Tone.context.state !== 'running') {
             await Tone.context.resume();
         }
@@ -347,10 +348,11 @@
             stepBtn.dataset.track = trackIdx;
             stepBtn.dataset.step = i;
             
-            // Add both click and touch listeners for responsiveness
+            // Interaction handler
             const interact = (e) => {
-                // Prevent ghost clicks on touch devices
-                if (e.type === 'touchstart') e.preventDefault();
+                // We prevent default on grid to allow sliding/rapid taps, 
+                // but NOT on the start button.
+                if (e.cancelable && e.type === 'touchstart') e.preventDefault();
                 toggleStep(trackIdx, i, stepBtn);
             };
 
@@ -411,26 +413,25 @@
 
     // --- CONTROLS ---
 
-    // Enhanced Start Handler for Mobile Permissions
-    const startBtn = document.getElementById('start-btn');
-    const overlay = document.getElementById('overlay');
-
-    const handleStart = async (e) => {
-        if (e.type === 'touchstart') e.preventDefault();
+    // START HANDLER
+    // Fix for Mobile: Use standard click. 
+    // Touching a button on mobile fires a click event 300ms later.
+    // This is acceptable and required for Tone.start() to be trusted.
+    document.getElementById('start-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('start-btn');
+        const overlay = document.getElementById('overlay');
         
-        startBtn.innerText = "INITIALIZING...";
+        btn.innerText = "INITIALIZING...";
+        
         try {
             await initAudio();
             overlay.style.opacity = '0';
             setTimeout(() => { overlay.style.display = 'none'; }, 300);
-        } catch (err) {
-            console.error(err);
-            startBtn.innerText = "ERROR (TRY CLICK)";
+        } catch (e) {
+            console.error(e);
+            btn.innerText = "ERROR - TAP AGAIN";
         }
-    };
-
-    startBtn.addEventListener('click', handleStart);
-    startBtn.addEventListener('touchstart', handleStart, {passive: false});
+    });
 
     document.getElementById('play-pause').onclick = async () => {
         // Audio Context Safety Check for Mobile Wake

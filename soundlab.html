@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>COMPUTER SOUNDS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
@@ -26,7 +26,8 @@
             --overlay-bg: rgba(18, 18, 18, 0.95);
         }
 
-        * { box-sizing: border-box; user-select: none; -webkit-font-smoothing: antialiased; }
+        /* Prevent highlighting on touch devices */
+        * { box-sizing: border-box; user-select: none; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0; padding: 0;
@@ -44,6 +45,7 @@
             padding: 20px 40px; border-bottom: 1px solid var(--ink);
             height: 80px;
             transition: border-color 0.3s;
+            flex-shrink: 0;
         }
 
         h1 { font-size: 18px; font-weight: 700; margin: 0; letter-spacing: 2px; }
@@ -63,6 +65,7 @@
         #workspace {
             flex: 1; display: flex;
             height: calc(100vh - 80px);
+            overflow: hidden; /* Important for mobile scroll containment */
         }
 
         /* SIDEBAR (CONTROLS) */
@@ -70,6 +73,8 @@
             width: 250px; border-right: 1px solid var(--ink);
             padding: 30px; display: flex; flex-direction: column; gap: 20px;
             transition: border-color 0.3s;
+            flex-shrink: 0;
+            overflow-y: auto;
         }
 
         .control-group { margin-bottom: 20px; }
@@ -112,6 +117,7 @@
         .track-label {
             width: 100px; font-weight: 700; opacity: 0.5;
             display: flex; justify-content: space-between; padding-right: 20px;
+            flex-shrink: 0;
         }
         
         .steps {
@@ -149,12 +155,59 @@
         }
         #start-btn:hover { background: var(--ink); color: var(--bg); }
 
+        /* MOBILE ADJUSTMENTS */
+        @media (max-width: 768px) {
+            header { padding: 0 20px; height: 60px; }
+            h1 { font-size: 14px; }
+            .status { font-size: 9px; }
+
+            /* Switch to vertical layout */
+            #workspace { flex-direction: column; }
+
+            /* Re-flow controls to a horizontal bar */
+            aside {
+                width: 100%; height: auto; 
+                border-right: none; border-bottom: 1px solid var(--ink);
+                padding: 15px; 
+                flex-direction: row; flex-wrap: wrap; 
+                gap: 10px;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .control-group { margin-bottom: 0; flex: 1; min-width: 80px; text-align: center;}
+            .btn { padding: 10px 5px; font-size: 9px; }
+            
+            #sequencer { 
+                padding: 20px 10px; 
+                justify-content: flex-start; 
+                display: block; /* Allows internal scrolling */
+            }
+
+            .track { margin-bottom: 15px; }
+            .track-label { width: 60px; font-size: 9px; padding-right: 10px; }
+
+            /* Make steps scrollable on small screens */
+            .steps {
+                display: flex; 
+                overflow-x: auto;
+                gap: 2px;
+                padding-bottom: 5px;
+            }
+            .step {
+                flex: 0 0 30px; /* Fixed width for touch targets */
+                height: 100%;
+            }
+            
+            /* Hide scrollbar */
+            .steps::-webkit-scrollbar { display: none; }
+        }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <button id="start-btn">COMPUTER_SOUND</button>
+        <button id="start-btn">TAP TO START</button>
     </div>
 
     <header>
@@ -167,8 +220,8 @@
 
     <div id="workspace">
         <aside>
-            <div class="control-group">
-                <button class="btn" id="play-pause">PLAY / STOP</button>
+            <div class="control-group" style="flex-grow: 2;">
+                <button class="btn" id="play-pause">PLAY</button>
             </div>
             
             <div class="control-group">
@@ -177,22 +230,19 @@
             </div>
 
             <div class="control-group">
-                <span class="label">GLOBAL FX</span>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button class="btn" id="fx-crush">BITCRUSH</button>
-                    <button class="btn" id="fx-verb">SPACE</button>
+                <span class="label">FX</span>
+                <div style="display: flex; gap: 5px; justify-content: center;">
+                    <button class="btn" id="fx-crush">BIT</button>
+                    <button class="btn" id="fx-verb">SPC</button>
                 </div>
             </div>
 
-            <div class="control-group" style="margin-top: auto;">
-                <span class="label">SOUND BANK</span>
-                <button class="btn" id="mutate">MUTATE SOUNDS</button>
-                <div style="margin-top: 10px; font-size: 9px; opacity: 0.6;">
-                    Generates new synthesis parameters for all tracks.
-                </div>
+            <div class="control-group">
+                <span class="label">BANK</span>
+                <button class="btn" id="mutate">MUTATE</button>
             </div>
             
-            <button class="btn" id="clear">CLEAR GRID</button>
+            <button class="btn" id="clear" style="flex-grow: 0; width: auto;">X</button>
         </aside>
 
         <div id="sequencer">
@@ -212,9 +262,18 @@
     // --- AUDIO ENGINE (Tone.js) ---
     let kit = [];
     let effects = {};
+    let audioInitialized = false;
     
     async function initAudio() {
+        if(audioInitialized) return;
+
+        // Essential for Mobile: Start Context inside user event
         await Tone.start();
+        
+        // Double check context state for iOS
+        if (Tone.context.state !== 'running') {
+            await Tone.context.resume();
+        }
         
         // Global FX Bus
         effects.crusher = new Tone.BitCrusher(4).toDestination();
@@ -257,13 +316,15 @@
         kit[5] = new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: "triangle" },
             envelope: { attack: 0.5, release: 1 }
-        }).connect(effects.reverb); // Pad goes mostly to reverb
+        }).connect(effects.reverb); 
         kit[5].volume.value = -10;
 
         // Transport Loop
         Tone.Transport.scheduleRepeat((time) => {
             step(time);
         }, "16n");
+
+        audioInitialized = true;
     }
 
     // --- UI GENERATION ---
@@ -285,7 +346,17 @@
             stepBtn.className = 'step';
             stepBtn.dataset.track = trackIdx;
             stepBtn.dataset.step = i;
-            stepBtn.onclick = () => toggleStep(trackIdx, i, stepBtn);
+            
+            // Add both click and touch listeners for responsiveness
+            const interact = (e) => {
+                // Prevent ghost clicks on touch devices
+                if (e.type === 'touchstart') e.preventDefault();
+                toggleStep(trackIdx, i, stepBtn);
+            };
+
+            stepBtn.addEventListener('mousedown', interact);
+            stepBtn.addEventListener('touchstart', interact, {passive: false});
+
             stepsContainer.appendChild(stepBtn);
         }
 
@@ -305,6 +376,7 @@
     }
 
     function playSound(trackIdx, time) {
+        if (!audioInitialized) return;
         const synth = kit[trackIdx];
         if(!synth) return;
 
@@ -339,12 +411,31 @@
 
     // --- CONTROLS ---
 
-    document.getElementById('start-btn').onclick = async () => {
-        await initAudio();
-        document.getElementById('overlay').style.display = 'none';
+    // Enhanced Start Handler for Mobile Permissions
+    const startBtn = document.getElementById('start-btn');
+    const overlay = document.getElementById('overlay');
+
+    const handleStart = async (e) => {
+        if (e.type === 'touchstart') e.preventDefault();
+        
+        startBtn.innerText = "INITIALIZING...";
+        try {
+            await initAudio();
+            overlay.style.opacity = '0';
+            setTimeout(() => { overlay.style.display = 'none'; }, 300);
+        } catch (err) {
+            console.error(err);
+            startBtn.innerText = "ERROR (TRY CLICK)";
+        }
     };
 
-    document.getElementById('play-pause').onclick = () => {
+    startBtn.addEventListener('click', handleStart);
+    startBtn.addEventListener('touchstart', handleStart, {passive: false});
+
+    document.getElementById('play-pause').onclick = async () => {
+        // Audio Context Safety Check for Mobile Wake
+        if(Tone.context.state !== 'running') await Tone.context.resume();
+
         if(!isPlaying) {
             Tone.Transport.start();
             document.getElementById('play-pause').innerText = "STOP";
@@ -391,21 +482,12 @@
         this.classList.toggle('active');
     };
 
-    // --- SOUND MUTATION (The "100 Sounds" Feature) ---
+    // --- SOUND MUTATION ---
     document.getElementById('mutate').onclick = () => {
-        // Randomize Synth Parameters to create new textures
-        
-        // Randomize Kick
         kit[0].envelope.decay = 0.1 + Math.random() * 0.4;
-        
-        // Randomize Glitch (FMSynth)
         kit[4].harmonicity.value = Math.floor(Math.random() * 10) + 1;
         kit[4].modulationIndex.value = Math.random() * 50;
-        
-        // Randomize Bass Filter
         kit[3].filter.frequency.value = 100 + Math.random() * 800;
-        
-        // Randomize Metal
         kit[2].harmonicity = Math.random() * 10;
         
         alert("SOUND_BANK_RECOMPILED // NEW_TEXTURES_GENERATED");

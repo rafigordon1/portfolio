@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Focus Guard — Pro</title>
+<style>
+  :root { 
+    --bg: #050505; 
+    --cyan: #00f3ff; 
+    --red: #ff003c; 
+    --glass: rgba(16, 20, 26, 0.9);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); font-family: 'Courier New', monospace; overflow: hidden; }
+
+  /* Layout */
+  .viewport { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  
+  video, canvas { 
+    position: absolute; inset: 0; width: 100%; height: 100%; 
+    object-fit: cover; transform: scaleX(-1); /* Mirror */
+  }
+
+  /* HUD Overlay */
+  .hud {
+    position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 100px rgba(0,0,0,0.8);
+    transition: all 0.2s;
+    display: flex; flex-direction: column; justify-content: space-between; padding: 20px;
+  }
+
+  /* Alerts */
+  .hud.phone-active { 
+    box-shadow: inset 0 0 60px var(--cyan); 
+    border: 4px solid var(--cyan); 
+  }
+  .hud.screech-active { 
+    box-shadow: inset 0 0 100px var(--red); 
+    border: 8px solid var(--red); 
+    animation: shake 0.3s infinite; 
+  }
+
+  @keyframes shake {
+    0% { transform: translate(1px, 1px); }
+    25% { transform: translate(-2px, -2px); }
+    50% { transform: translate(2px, 0px); }
+    75% { transform: translate(-1px, 2px); }
+    100% { transform: translate(0px, 0px); }
+  }
+
+  /* Controls & Status */
+  .top-bar { display: flex; justify-content: space-between; width: 100%; pointer-events: auto; }
+  .btm-bar { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; pointer-events: auto; }
+
+  /* Typography */
+  .label { color: #666; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; display: block; }
+  .val { font-size: 16px; font-weight: bold; color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
+  .val.alert { color: var(--red); text-shadow: 0 0 8px var(--red); }
+
+  /* Interactive Elements */
+  button {
+    background: var(--cyan); color: #000; border: none; padding: 12px 24px;
+    font-family: inherit; font-weight: bold; font-size: 14px; letter-spacing: 1px;
+    cursor: pointer; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: transform 0.1s, background 0.2s;
+  }
+  button:hover { background: #fff; transform: scale(1.05); }
+  button:active { transform: scale(0.95); }
+  button:disabled { background: #333; color: #666; cursor: wait; transform: none; }
+
+  select {
+    background: var(--glass); color: #fff; border: 1px solid #333;
+    padding: 8px; font-family: inherit; font-size: 12px; outline: none; cursor: pointer;
+    text-transform: uppercase;
+  }
+
+  /* Centered Alert Text */
+  .center-alert {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center; display: none;
+  }
+  .center-alert h1 {
+    font-size: 4rem; margin: 0; color: var(--red);
+    text-shadow: 0 0 20px var(--red); letter-spacing: 10px;
+  }
+
+</style>
+</head>
+<body>
+
+  <div class="viewport">
+    <video id="v" autoplay playsinline muted></video>
+    <canvas id="c"></canvas>
+    
+    <div id="hud" class="hud">
+      <div class="top-bar">
+        <div>
+          <button id="start-btn">START</button>
+          <select id="cams" style="display:none"></select>
+        </div>
+      </div>
+
+      <div id="center-msg" class="center-alert">
+        <h1>EYES UP</h1>
+      </div>
+
+      <div class="btm-bar">
+        <div>
+          <span class="label">ACTIVE CAMERA</span>
+          <span id="cam-name" class="val" style="font-size:12px; color:#fff">--</span>
+        </div>
+        <div style="text-align:right">
+          <span class="label">DETECTION</span>
+          <div id="metrics">
+            <span style="margin-right:15px">PHONE: <span id="p-score">0%</span></span>
+            <span>GAZE: <span id="t-score">LEVEL</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {FilesetResolver, ObjectDetector, FaceLandmarker} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+    // --- Configuration ---
+    const CONFIG = {
+      // Sensitivity: The lower this number, the EARLIER it triggers when looking down.
+      // 0.05 means "Trigger if nose is just slightly below the ears"
+      // 0.08 means "Trigger if nose is clearly below ears"
+      lookDownSensitivity: 0.04, 
+      phoneConfThreshold: 0.25, // Aggressive phone detection
+      phoneLabels: ["cell phone", "mobile phone", "phone", "smartphone", "iphone", "android"]
+    };
+
+    // --- DOM ---
+    const v = document.getElementById('v');
+    const c = document.getElementById('c');
+    const ctx = c.getContext('2d');
+    const hud = document.getElementById('hud');
+    const startBtn = document.getElementById('start-btn');
+    const camsSel = document.getElementById('cams');
+    const centerMsg = document.getElementById('center-msg');
+    
+    // UI Values
+    const pScoreEl = document.getElementById('p-score');
+    const tScoreEl = document.getElementById('t-score');
+    const camNameEl = document.getElementById('cam-name');
+
+    // --- Audio Engine ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let phoneOsc = null;
+    let screechOsc = null;
+    let screechGain = null;
+    let lastBeepTime = 0;
+
+    // --- State ---
+    let objectDetector = null;
+    let faceLandmarker = null;
+    let running = false;
+    let stream = null;
+    let lastVideoTime = -1;
+
+    // --- Initialization ---
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      startBtn.textContent = "LOADING MODELS...";
+      
+      // Resume audio context on user gesture
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+      try {
+        await initVision();
+        await startCamera();
+        
+        running = true;
+        startBtn.style.display = "none";
+        camsSel.style.display = "inline-block";
+        
+        loop();
+      } catch(e) {
+        console.error(e);
+        startBtn.textContent = "RETRY (ERROR)";
+        startBtn.disabled = false;
+      }
+    });
+
+    async function initVision() {
+      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+
+      // 1. Phone Detection (EfficientDet-Lite2)
+      objectDetector = await ObjectDetector.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float16/1/efficientdet_lite2.tflite",
+          delegate: "GPU"
+        },
+        runningMode: "VIDEO",
+        scoreThreshold: CONFIG.phoneConfThreshold,
+        maxResults: 5
+      });
+
+      // 2. Face Landmarker
+      faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+          delegate: "GPU"
+        },
+        outputFaceBlendshapes: true,
+        runningMode: "VIDEO",
+        numFaces: 1
+      });
+    }
+
+    async function startCamera() {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevs = devices.filter(d => d.kind === 'videoinput');
+      
+      if (camsSel.options.length === 0) {
+        videoDevs.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.deviceId;
+          opt.text = d.label || `Camera ${camsSel.length + 1}`;
+          camsSel.appendChild(opt);
+        });
+        camsSel.onchange = startCamera;
+      }
+
+      const constraints = {
+        video: {
+          deviceId: camsSel.value ? { exact: camsSel.value } : undefined,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      };
+
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      v.srcObject = stream;
+      await new Promise(r => v.onloadedmetadata = r);
+      
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      camNameEl.textContent = camsSel.options[camsSel.selectedIndex]?.text || "DEFAULT";
+    }
+
+    // --- Audio Functions ---
+    function playBeep(intensity) {
+        const now = audioCtx.currentTime;
+        if (now - lastBeepTime > 0.15) { // Rapid Radar
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'square'; 
+            osc.frequency.setValueAtTime(1200, now);
+            osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+            
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(now + 0.15);
+            lastBeepTime = now;
+        }
+    }
+
+    function startScreech() {
+        if (screechOsc) return;
+        
+        screechOsc = audioCtx.createOscillator();
+        screechGain = audioCtx.createGain();
+        
+        screechOsc.type = 'sawtooth';
+        screechOsc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        
+        // "Nasty" Modulation
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sawtooth';
+        lfo.frequency.value = 20; 
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.value = 600; 
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(screechOsc.frequency);
+        lfo.start();
+
+        screechGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        screechGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1); // Fast attack
+        
+        screechOsc.connect(screechGain);
+        screechGain.connect(audioCtx.destination);
+        screechOsc.start();
+    }
+
+    function stopScreech() {
+        if (!screechOsc) return;
+        const now = audioCtx.currentTime;
+        screechGain.gain.cancelScheduledValues(now);
+        screechGain.gain.setValueAtTime(screechGain.gain.value, now);
+        screechGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        
+        screechOsc.stop(now + 0.15);
+        screechOsc = null;
+        screechGain = null;
+    }
+
+    // --- Core Logic ---
+    async function loop() {
+      if (!running) return;
+
+      const startTimeMs = performance.now();
+      
+      if (v.currentTime !== lastVideoTime) {
+        lastVideoTime = v.currentTime;
+        
+        // 1. Detect Phones
+        const detections = objectDetector.detectForVideo(v, startTimeMs);
+        const phones = detections.detections.filter(d => {
+            const label = d.categories[0].categoryName.toLowerCase();
+            return CONFIG.phoneLabels.some(l => label.includes(l));
+        });
+
+        const isPhone = phones.length > 0;
+        let maxConf = isPhone ? Math.max(...phones.map(p => p.categories[0].score)) : 0;
+
+        // 2. Detect Gaze (Geometry Method)
+        let isLookingDown = false;
+        let gazeVal = 0;
+        
+        const faces = faceLandmarker.detectForVideo(v, startTimeMs);
+        if (faces.faceLandmarks.length > 0) {
+            const lm = faces.faceLandmarks[0];
+            
+            // KEY INDICES: 
+            // 1: Nose Tip
+            // 234: Left Ear (Cheekbone/Tragus area)
+            // 454: Right Ear
+            
+            const noseY = lm[1].y;
+            const earY = (lm[234].y + lm[454].y) / 2;
+            
+            // In normalized coords (0-1), Y increases downwards.
+            // If looking straight: Nose is roughly parallel to ears.
+            // If looking down: Nose drops BELOW ears (NoseY > EarY).
+            
+            // "gazeVal" is positive when looking down
+            gazeVal = noseY - earY;
+            
+            // Check threshold
+            if (gazeVal > CONFIG.lookDownSensitivity) {
+                isLookingDown = true;
+            }
+        }
+
+        // 3. Audio Triggers
+        if (isPhone) {
+            playBeep();
+        }
+
+        if (isLookingDown) {
+            startScreech();
+        } else {
+            stopScreech();
+        }
+
+        // 4. Draw UI
+        draw(phones, gazeVal, isLookingDown, maxConf);
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    function draw(phones, gazeVal, isLookingDown, conf) {
+        ctx.clearRect(0, 0, c.width, c.height);
+        
+        // Draw Boxes
+        if (phones.length > 0) {
+            hud.classList.add('phone-active');
+            pScoreEl.textContent = `${(conf*100).toFixed(0)}%`;
+            pScoreEl.classList.add('alert');
+            
+            phones.forEach(p => {
+                const {originX, originY, width, height} = p.boundingBox;
+                
+                // Box
+                ctx.beginPath();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "rgba(0, 243, 255, 0.9)";
+                ctx.rect(originX, originY, width, height);
+                ctx.stroke();
+
+                // Fill
+                ctx.fillStyle = "rgba(0, 243, 255, 0.1)";
+                ctx.fillRect(originX, originY, width, height);
+
+                // Label
+                ctx.fillStyle = "#00f3ff";
+                ctx.font = "bold 16px Courier New";
+                ctx.fillText(`DETECTED ${(p.categories[0].score*100).toFixed(0)}%`, originX, originY - 10);
+            });
+        } else {
+            hud.classList.remove('phone-active');
+            pScoreEl.textContent = "0%";
+            pScoreEl.classList.remove('alert');
+        }
+
+        // Gaze UI
+        if (isLookingDown) {
+            hud.classList.add('screech-active');
+            tScoreEl.textContent = "DOWN";
+            tScoreEl.classList.add('alert');
+            centerMsg.style.display = "block";
+            
+            // Red tint overlay
+            ctx.fillStyle = "rgba(255, 0, 60, 0.15)";
+            ctx.fillRect(0, 0, c.width, c.height);
+        } else {
+            hud.classList.remove('screech-active');
+            tScoreEl.textContent = "LEVEL";
+            tScoreEl.classList.remove('alert');
+            centerMsg.style.display = "none";
+        }
+    }
+  </script>
+</body>
+</html>

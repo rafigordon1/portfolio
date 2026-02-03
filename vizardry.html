@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Vizardry — Rafi Gordon</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  
+  <style>
+      .v-row { margin-bottom: 15vh; }
+      
+      .nav-arrow {
+          position: fixed; top: 50%; transform: translateY(-50%);
+          width: 50px; height: 50px; border-radius: 50%;
+          background: rgba(120, 120, 120, 0.1);
+          backdrop-filter: blur(5px);
+          display: flex; justify-content: center; align-items: center;
+          cursor: pointer; z-index: 100;
+          transition: all 0.3s ease;
+          border: 1px solid rgba(255,255,255,0.1);
+      }
+      .nav-arrow:hover { background: var(--accent); color: black; transform: translateY(-50%) scale(1.1); }
+      .nav-arrow.left { left: 2vw; }
+      .nav-arrow.right { right: 2vw; }
+      .nav-arrow svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+      @media (max-width: 768px) {
+          .nav-arrow { display: flex; width: 40px; height: 40px; bottom: 120px; top: auto; transform: none; background: rgba(0,0,0,0.6); color: #fff; }
+          .nav-arrow.left { left: 5vw; }
+          .nav-arrow.right { right: 5vw; }
+          .v-row { margin-bottom: 10vh; }
+      }
+  </style>
+</head>
+<body>
+  <div id="p5-canvas-container"></div>
+  
+  <div class="nav-arrow left" onclick="window.location.href='thegreatescape.html'">
+    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+  </div>
+  <div class="nav-arrow right" onclick="window.location.href='swipeout.html'">
+    <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+
+  <div class="mobile-menu">
+    <button class="menu-close">✕</button>
+    <div class="mobile-theme-toggle-inside">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+    </div>
+    <div class="mobile-settings-area">
+        <div class="mobile-settings-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"/><line x1="6" y1="8" x2="18" y2="8" stroke-linecap="round"/><circle cx="14" cy="8" r="2" fill="currentColor" /><line x1="6" y1="16" x2="18" y2="16" stroke-linecap="round"/><circle cx="10" cy="16" r="2" fill="currentColor" /></svg></div>
+        <div class="mobile-params">
+            <div class="setting-row"><label>Speed</label><input id="p-speed" type="range" min="0.1" max="3" step="0.1" value="0.2"></div>
+            <div class="setting-row"><label>Density</label><input id="p-density" type="range" min="0.5" max="2" step="0.1" value="0.2"></div>
+            <div class="setting-row"><label>Glow <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-left:4px; opacity:0.7;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></label><input id="p-glow" type="range" min="0.2" max="1.5" step="0.1" value="0.5"></div>
+        </div>
+    </div>
+    <div class="mobile-footer-area">
+        <div class="site-timer-display">0:00</div>
+        <div class="mobile-sound-toggle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        </div>
+    </div>
+    <a href="index.html">Home</a>
+    
+    <div class="mobile-dropdown-container">
+        <div class="mobile-dropdown-header">
+            <a href="projects.html" class="active-link">Projects</a>
+            <button class="mobile-dropdown-toggle">
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+        </div>
+        <div class="mobile-dropdown-content">
+            <a href="vizardry.html">Vizardry</a>
+            <a href="swipeout.html">SwipeOut</a>
+            <a href="thegreatescape.html">Great Escape</a>
+        </div>
+    </div>
+
+    <a href="play.html">Play</a>
+    <a href="about.html">About</a>
+  </div>
+
+  <header>
+    <div class="current-page-label">Vizardry</div>
+    <div class="mobile-header-left mobile-home-link" onclick="window.location.href='index.html'">
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+    </div>
+    <div class="desktop-home-icon" onclick="window.location.href='index.html'" style="position:absolute; left:6vw;">
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+    </div>
+    <nav><a href="projects.html" class="active-link">Projects</a><a href="play.html">Play</a><a href="about.html">About</a></nav>
+    <div class="header-right"><div class="settings-wrapper"><div class="settings-toggle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"/><line x1="6" y1="8" x2="18" y2="8" stroke-linecap="round"/><circle cx="14" cy="8" r="2" fill="currentColor" /><line x1="6" y1="16" x2="18" y2="16" stroke-linecap="round"/><circle cx="10" cy="16" r="2" fill="currentColor" /></svg></div><div class="settings-panel"><div class="setting-row"><label>Speed</label><input id="p-speed" type="range" min="0.1" max="3" step="0.1" value="0.2"></div><div class="setting-row"><label>Density</label><input id="p-density" type="range" min="0.5" max="2" step="0.1" value="0.2"></div><div class="setting-row"><label>Glow <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-left:4px; opacity:0.7;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></label><input id="p-glow" type="range" min="0.2" max="1.5" step="0.1" value="0.5"></div></div></div><div class="theme-toggle-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></div></div>
+    <button class="mobile-hamburger"><span></span><span></span><span></span></button>
+  </header>
+
+  <main>
+    <section class="shatter-container left-aligned-header">
+        <h1 class="universal-page-title">Vizardry</h1>
+        <span class="intro-line" style="margin-top:1rem; opacity:0.7;">Audio-Reactive Visuals</span>
+    </section>
+
+    <div class="v-container">
+
+      <div class="v-row">
+          <div class="v-text">
+             <h2>Problem?</h2>
+             <p>Traditional audio-visualisers often feel disconnected from the user. They are static, pre-rendered, or locked behind expensive paywalls that limit creative expression for independent artists.</p>
+          </div>
+          <div class="v-visual">
+             <div class="project-img-Wrapper" style="border:none; background:none;">
+                <img src="paywall.jpg" alt="The Problem" style="width:100%; border-radius:4px;">
+             </div>
+          </div>
+      </div>
+
+      <div class="v-row reverse">
+        <div class="v-visual">
+           <div class="project-img-Wrapper" style="border:none; background:none; aspect-ratio: 1/1; max-width: 100%;">
+              <img src="visual.jpg" alt="Generative Suite" style="width:80%; height: 80%; border-radius:20px; object-fit: cover;">
+           </div>
+        </div>
+        <div class="v-text">
+           <h2>Solution?</h2>
+           <p>Vizardry is a web-based generative art suite built using p5.js that transforms real-time audio input into visual geometry. The project explores the intersection of creative coding and user experience, offering a library of visualisers and methods for interaction.<br></br><br>The visuals showing onload are only scatching the surface of possibilities, experimental is strongly encouraged.</br></p>
+        </div>
+      </div>
+
+      <div class="v-row reverse">
+        <div class="v-visual">
+            <div class="v-immersive-demo" id="liquid-demo-container">
+                <div class="immersive-ui-panel">
+                    <input type="range" class="liquid-slider" id="liquid-flow" min="0" max="2" step="0.01" value="0.1">
+                    <input type="range" class="liquid-slider" id="liquid-turb" min="0.1" max="3" step="0.1" value="1.0">
+                    <input type="range" class="liquid-slider" id="liquid-color" min="0" max="1" step="0.01" value="0.5">
+                </div>
+                <div class="immersive-hint">
+                    <span class="desktop-hint">Hover to Reveal UI</span>
+                    <span class="mobile-hint">Tap to Reveal UI</span>
+                </div>
+            </div>
+        </div>
+        <div class="v-text">
+           <h2>The Interface</h2>
+           <p>The User Interface (UI) follows a "disappearing element” pattern. The control parameters are housed in a translucent panel that reveals itself only upon hover or keyboard interaction, and automatically fades out after a period of inactivity.</p>
+        </div>
+      </div>
+
+      <div class="v-row">
+          <div class="v-text">
+              <h2>Controls</h2>
+              <p>Different users prefer different interaction models and the control schemes should reflect this. The visualisers can be manipulated using the on-screen slider interface, mapped keyboard shortcuts (keys 1-6), or a custom hardware dial unit.</p>
+          </div>
+          <div class="v-visual">
+              <div class="control-demo-wrapper">
+                  <div class="control-widget">
+                      <div class="c-box box-1">1</div>
+                      <div class="c-box box-2">2</div>
+                      <div class="c-slider-track">
+                         <div class="c-slider-thumb"></div>
+                      </div>
+                  </div>
+                  <div class="project-img-Wrapper" style="border:none; background:none;">
+                    <img src="test.jpg" alt="Controls" style="width:100%; border-radius:4px;">
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <div class="v-row reverse">
+         <div class="v-visual">
+             <div class="v-device-graphic">
+                 <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                 <div class="device-check">✓</div>
+             </div>
+         </div>
+         <div class="v-text">
+             <h2>Constraints</h2>
+             <p>Given the high computational cost of real-time rendering and Fast Fourier Transform (FFT) audio analysis, the decision to enforce a "Desktop Only" constraint was made. The application detects the viewport size and serves a specific message to mobile users encouraging them to switch devices.</p>
+         </div>
+      </div>
+
+    </div>
+
+    <div class="v-footer-link">
+        <a href="https://vizardry.live/" class="v-launch-btn">Launch Vizardry</a>
+    </div>
+
+    <div class="get-in-touch-container">
+        <div class="get-in-touch-text">Get in Touch</div>
+        <div class="email-popup">
+           <span>rafigordon04@gmail.com</span>
+           <svg class="copy-icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </div>
+     </div>
+  </main>
+
+  <footer>
+     <div class="desktop-footer-content">
+        <span class="site-timer-display">0:00</span>
+        <div class="sound-toggle">
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        </div>
+     </div>
+  </footer>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMPUTER SOUNDS</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            /* Light Mode (Default) */
+            --bg: #ffffff;
+            --ink: #000000;
+            --line: #e0e0e0;
+            --active: #000000;
+            --highlight: #00ffaa; /* Digital Accent */
+            --overlay-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        body.dark-mode {
+            /* Dark Mode Overrides */
+            --bg: #121212;
+            --ink: #e0e0e0;
+            --line: #333333;
+            --active: #ffffff;
+            --highlight: #ff0055;
+            --overlay-bg: rgba(18, 18, 18, 0.95);
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-font-smoothing: antialiased; }
+
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg); color: var(--ink);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            height: 100vh; display: flex; flex-direction: column;
+            overflow: hidden;
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* HEADER */
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 40px; border-bottom: 1px solid var(--ink);
+            height: 80px;
+            transition: border-color 0.3s;
+        }
+
+        h1 { font-size: 18px; font-weight: 700; margin: 0; letter-spacing: 2px; }
+        
+        .header-controls { display: flex; gap: 20px; align-items: center; }
+        .status { font-family: monospace; color: var(--ink); opacity: 0.6; }
+
+        /* THEME TOGGLE */
+        #theme-btn {
+            background: transparent; border: 1px solid var(--ink);
+            color: var(--ink); padding: 5px 10px; cursor: pointer;
+            font-size: 10px; text-transform: uppercase; font-family: inherit;
+        }
+        #theme-btn:hover { background: var(--ink); color: var(--bg); }
+
+        /* MAIN CONTROL AREA */
+        #workspace {
+            flex: 1; display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        /* SIDEBAR (CONTROLS) */
+        aside {
+            width: 250px; border-right: 1px solid var(--ink);
+            padding: 30px; display: flex; flex-direction: column; gap: 20px;
+            transition: border-color 0.3s;
+        }
+
+        .control-group { margin-bottom: 20px; }
+        .label { display: block; margin-bottom: 8px; font-weight: 700; }
+
+        /* SLIDERS */
+        input[type=range] {
+            width: 100%; -webkit-appearance: none; background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 12px; width: 12px;
+            background: var(--ink); cursor: pointer; border-radius: 0; margin-top: -5px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 2px; background: var(--line);
+        }
+
+        /* BUTTONS */
+        .btn {
+            background: transparent; border: 1px solid var(--ink);
+            color: var(--ink); padding: 12px; width: 100%;
+            cursor: pointer; font-size: 10px; text-transform: uppercase;
+            letter-spacing: 1px; transition: all 0.2s;
+            font-weight: 600; text-align: center;
+        }
+        .btn:hover { background: var(--ink); color: var(--bg); }
+        .btn.active { background: var(--ink); color: var(--highlight); border-color: var(--ink); }
+
+        /* SEQUENCER GRID */
+        #sequencer {
+            flex: 1; padding: 40px;
+            display: flex; flex-direction: column; justify-content: center;
+            overflow-y: auto;
+        }
+
+        .track {
+            display: flex; align-items: center; height: 40px; margin-bottom: 10px;
+        }
+
+        .track-label {
+            width: 100px; font-weight: 700; opacity: 0.5;
+            display: flex; justify-content: space-between; padding-right: 20px;
+        }
+        
+        .steps {
+            flex: 1; display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px;
+            height: 100%;
+        }
+
+        .step {
+            border: 1px solid var(--line);
+            cursor: pointer; transition: 0.1s;
+            position: relative;
+        }
+
+        .step:hover { border-color: var(--ink); }
+        
+        /* Active State (Note On) */
+        .step.active { background: var(--ink); }
+        
+        /* Playhead Indicator */
+        .step.playing { border-color: var(--highlight); }
+        .step.active.playing { background: var(--highlight); }
+
+        /* OVERLAY FOR START */
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--overlay-bg); z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            transition: background 0.3s;
+        }
+        #start-btn {
+            border: 1px solid var(--ink); padding: 20px 60px;
+            font-size: 14px; cursor: pointer; 
+            background: var(--bg); color: var(--ink);
+            letter-spacing: 3px;
+        }
+        #start-btn:hover { background: var(--ink); color: var(--bg); }
+
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <button id="start-btn">COMPUTER_SOUND</button>
+    </div>
+
+    <header>
+        <h1>COMPUTER_SOUND</h1>
+        <div class="header-controls">
+            <button id="theme-btn">THEME</button>
+            <div class="status">BPM: <span id="bpm-val">128</span></div>
+        </div>
+    </header>
+
+    <div id="workspace">
+        <aside>
+            <div class="control-group">
+                <button class="btn" id="play-pause">PLAY / STOP</button>
+            </div>
+            
+            <div class="control-group">
+                <span class="label">TEMPO</span>
+                <input type="range" id="tempo" min="80" max="180" value="128">
+            </div>
+
+            <div class="control-group">
+                <span class="label">GLOBAL FX</span>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn" id="fx-crush">BITCRUSH</button>
+                    <button class="btn" id="fx-verb">SPACE</button>
+                </div>
+            </div>
+
+            <div class="control-group" style="margin-top: auto;">
+                <span class="label">SOUND BANK</span>
+                <button class="btn" id="mutate">MUTATE SOUNDS</button>
+                <div style="margin-top: 10px; font-size: 9px; opacity: 0.6;">
+                    Generates new synthesis parameters for all tracks.
+                </div>
+            </div>
+            
+            <button class="btn" id="clear">CLEAR GRID</button>
+        </aside>
+
+        <div id="sequencer">
+            </div>
+    </div>
+
+<script>
+    // --- CONFIGURATION ---
+    const TRACK_NAMES = ["KICK", "SNARE", "HIHAT", "BASS", "GLITCH", "PAD"];
+    const STEPS = 16;
+    let isPlaying = false;
+    let currentStep = 0;
+    
+    // State Grid [TrackIndex][StepIndex]
+    let gridData = Array(TRACK_NAMES.length).fill().map(() => Array(STEPS).fill(false));
+    
+    // --- AUDIO ENGINE (Tone.js) ---
+    let kit = [];
+    let effects = {};
+    
+    async function initAudio() {
+        await Tone.start();
+        
+        // Global FX Bus
+        effects.crusher = new Tone.BitCrusher(4).toDestination();
+        effects.crusher.wet.value = 0;
+        
+        effects.reverb = new Tone.Reverb(4).toDestination();
+        effects.reverb.wet.value = 0;
+        
+        effects.master = new Tone.Gain(0.8).connect(effects.crusher).connect(effects.reverb).toDestination();
+
+        // 1. KICK (Membrane)
+        kit[0] = new Tone.MembraneSynth({ envelope: { attack: 0.001, decay: 0.2, sustain: 0 } }).connect(effects.master);
+        
+        // 2. SNARE (Noise + Envelope)
+        kit[1] = new Tone.NoiseSynth({ 
+            noise: { type: "white" }, 
+            envelope: { attack: 0.001, decay: 0.15, sustain: 0 } 
+        }).connect(effects.master);
+
+        // 3. HIHAT (Metal)
+        kit[2] = new Tone.MetalSynth({
+            frequency: 200, envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
+            harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5
+        }).connect(effects.master);
+        kit[2].volume.value = -10;
+
+        // 4. BASS (MonoSynth)
+        kit[3] = new Tone.MonoSynth({
+            oscillator: { type: "sawtooth" },
+            filter: { Q: 2, type: "lowpass", rollover: -12 }
+        }).connect(effects.master);
+
+        // 5. GLITCH (FM - The "Computer" Sound)
+        kit[4] = new Tone.FMSynth({
+            harmonicity: 8, modulationIndex: 20,
+            envelope: { attack: 0.01, decay: 0.1 }
+        }).connect(effects.master);
+
+        // 6. PAD (Polysynth)
+        kit[5] = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "triangle" },
+            envelope: { attack: 0.5, release: 1 }
+        }).connect(effects.reverb); // Pad goes mostly to reverb
+        kit[5].volume.value = -10;
+
+        // Transport Loop
+        Tone.Transport.scheduleRepeat((time) => {
+            step(time);
+        }, "16n");
+    }
+
+    // --- UI GENERATION ---
+    const seqContainer = document.getElementById('sequencer');
+
+    TRACK_NAMES.forEach((name, trackIdx) => {
+        const row = document.createElement('div');
+        row.className = 'track';
+        
+        const label = document.createElement('div');
+        label.className = 'track-label';
+        label.innerText = name;
+        
+        const stepsContainer = document.createElement('div');
+        stepsContainer.className = 'steps';
+
+        for(let i=0; i<STEPS; i++) {
+            const stepBtn = document.createElement('div');
+            stepBtn.className = 'step';
+            stepBtn.dataset.track = trackIdx;
+            stepBtn.dataset.step = i;
+            stepBtn.onclick = () => toggleStep(trackIdx, i, stepBtn);
+            stepsContainer.appendChild(stepBtn);
+        }
+
+        row.appendChild(label);
+        row.appendChild(stepsContainer);
+        seqContainer.appendChild(row);
+    });
+
+    // --- LOGIC ---
+
+    function toggleStep(track, step, el) {
+        gridData[track][step] = !gridData[track][step];
+        el.classList.toggle('active');
+        
+        // Audition sound on click
+        if(gridData[track][step]) playSound(track, Tone.now());
+    }
+
+    function playSound(trackIdx, time) {
+        const synth = kit[trackIdx];
+        if(!synth) return;
+
+        // Pitch map for melodic instruments
+        if(trackIdx === 0) synth.triggerAttackRelease("C1", "8n", time); // Kick
+        else if(trackIdx === 1) synth.triggerAttackRelease("8n", time);  // Snare
+        else if(trackIdx === 2) synth.triggerAttackRelease("32n", time); // Hat
+        else if(trackIdx === 3) synth.triggerAttackRelease("C2", "8n", time); // Bass
+        else if(trackIdx === 4) synth.triggerAttackRelease("G4", "16n", time); // Glitch
+        else if(trackIdx === 5) synth.triggerAttackRelease(["C4", "E4", "G4"], "4n", time); // Pad
+    }
+
+    function step(time) {
+        // Draw Playhead
+        Tone.Draw.schedule(() => {
+            const allSteps = document.querySelectorAll('.step');
+            allSteps.forEach(s => s.classList.remove('playing'));
+            
+            const currentColumn = document.querySelectorAll(`[data-step="${currentStep}"]`);
+            currentColumn.forEach(s => s.classList.add('playing'));
+        }, time);
+
+        // Trigger Sounds
+        gridData.forEach((trackSteps, trackIdx) => {
+            if(trackSteps[currentStep]) {
+                playSound(trackIdx, time);
+            }
+        });
+
+        currentStep = (currentStep + 1) % STEPS;
+    }
+
+    // --- CONTROLS ---
+
+    document.getElementById('start-btn').onclick = async () => {
+        await initAudio();
+        document.getElementById('overlay').style.display = 'none';
+    };
+
+    document.getElementById('play-pause').onclick = () => {
+        if(!isPlaying) {
+            Tone.Transport.start();
+            document.getElementById('play-pause').innerText = "STOP";
+            document.getElementById('play-pause').classList.add('active');
+        } else {
+            Tone.Transport.stop();
+            currentStep = 0;
+            document.getElementById('play-pause').innerText = "PLAY";
+            document.getElementById('play-pause').classList.remove('active');
+            
+            // Clear playhead visual
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('playing'));
+        }
+        isPlaying = !isPlaying;
+    };
+
+    document.getElementById('tempo').oninput = (e) => {
+        Tone.Transport.bpm.value = e.target.value;
+        document.getElementById('bpm-val').innerText = e.target.value;
+    };
+
+    document.getElementById('clear').onclick = () => {
+        gridData = gridData.map(row => row.fill(false));
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    };
+
+    // --- THEME TOGGLE ---
+    document.getElementById('theme-btn').onclick = () => {
+        document.body.classList.toggle('dark-mode');
+    };
+
+    // --- FX TOGGLES ---
+    let crushOn = false;
+    document.getElementById('fx-crush').onclick = function() {
+        crushOn = !crushOn;
+        effects.crusher.wet.value = crushOn ? 1 : 0;
+        this.classList.toggle('active');
+    };
+
+    let verbOn = false;
+    document.getElementById('fx-verb').onclick = function() {
+        verbOn = !verbOn;
+        effects.reverb.wet.value = verbOn ? 0.5 : 0;
+        this.classList.toggle('active');
+    };
+
+    // --- SOUND MUTATION (The "100 Sounds" Feature) ---
+    document.getElementById('mutate').onclick = () => {
+        // Randomize Synth Parameters to create new textures
+        
+        // Randomize Kick
+        kit[0].envelope.decay = 0.1 + Math.random() * 0.4;
+        
+        // Randomize Glitch (FMSynth)
+        kit[4].harmonicity.value = Math.floor(Math.random() * 10) + 1;
+        kit[4].modulationIndex.value = Math.random() * 50;
+        
+        // Randomize Bass Filter
+        kit[3].filter.frequency.value = 100 + Math.random() * 800;
+        
+        // Randomize Metal
+        kit[2].harmonicity = Math.random() * 10;
+        
+        alert("SOUND_BANK_RECOMPILED // NEW_TEXTURES_GENERATED");
+    };
+
+</script>
+</body>
+</html>

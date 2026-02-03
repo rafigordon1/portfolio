@@ -1,0 +1,468 @@
+Got it — here’s the full file with the cursor and visual moving **in the same direction**.
+I removed the old “camera ray steers toward mouse” bit (which creates opposite parallax) and instead **shift the field sampling by the mouse** so the texture itself tracks your pointer. Everything else stays the same.
+
+Just paste this whole thing:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Aurora Vortex — bright mode (cursor in-sync)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
+    .root { position: relative; width: 100%; height: 100%; }
+    #voidHost { position: absolute; inset: 0; overflow: hidden; border-radius: 12px; cursor: none; }
+
+    .cursor-dot {
+      position: absolute; width: 10px; height: 10px; border-radius: 50%;
+      background: #fff; box-shadow: 0 0 18px rgba(255,255,255,.95), 0 0 2px rgba(255,255,255,1) inset;
+      pointer-events: none; z-index: 15; transform: translate(-50%,-50%); opacity: .95; transition: opacity .08s linear;
+      will-change: left, top, opacity;
+    }
+
+    .panel {
+      position: absolute; top: 12px; left: 12px; z-index: 20; color: #fff;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      user-select: none;
+    }
+    .pill {
+      padding: 7px 12px; font-size: 12px; letter-spacing: .04em; border-radius: 999px;
+      backdrop-filter: blur(10px); background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.20));
+      border: 1px solid rgba(255,255,255,.16); cursor: default; transition: background 160ms ease, border 160ms ease;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+    .panel:hover .pill { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(0,0,0,.26)); border-color: rgba(255,255,255,.24); }
+
+    .drop {
+      position: absolute; top: 36px; left: 0; width: min(480px, 94vw);
+      max-height: 0; overflow: hidden;
+      border-radius: 14px; background: rgba(10,10,12,.30); border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(12px); padding: 0 14px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+      transition: max-height 220ms ease, padding 220ms ease;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent;
+    }
+    .panel:hover .drop { max-height: 82vh; overflow: auto; padding: 12px 14px 16px; }
+    .drop::-webkit-scrollbar { width: 10px; }
+    .drop::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 10px; }
+    .section { margin-top: 12px; }
+    .section h4 {
+      margin: 8px 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; opacity: .9;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section h4::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: linear-gradient(90deg, #00d26a, #53a6ff); box-shadow: 0 0 10px rgba(83,166,255,.9);
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .row {
+      display: grid; grid-template-columns: 160px 1fr 86px; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+    }
+    .row label { font-size: 12px; opacity: .92; }
+    .val {
+      justify-self: end; min-width: 52px; text-align: right; font-size: 11px; font-variant-numeric: tabular-nums;
+      padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+    }
+
+    input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; outline: none;
+      background: linear-gradient(90deg, rgba(255,255,255,.35), rgba(255,255,255,.12)); }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; border: 1px solid rgba(0,0,0,.2); box-shadow: 0 1px 6px rgba(0,0,0,.5); }
+    input[type="checkbox"] { transform: translateY(1px); }
+  </style>
+</head>
+<body>
+  <div class="root">
+    <div id="voidHost"></div>
+    <div id="cursorDot" class="cursor-dot"></div>
+
+    <div class="panel">
+      <div class="pill">⚙︎ Aurora Vortex — Bright</div>
+      <div class="drop">
+        <div class="section">
+          <h4>Quality / Performance</h4>
+          <div class="grid">
+            <div class="row"><label>Render Scale</label><input id="renderScale" type="range" min="0.6" max="1.0" step="0.05"/><div class="val" id="renderScaleVal"></div></div>
+            <div class="row"><label>FPS (est.)</label><div class="val" id="fpsVal">–</div><div></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Color & Brightness</h4>
+          <div class="grid">
+            <div class="row"><label>Exposure</label><input id="exposure" type="range" min="0.5" max="6" step="0.05"/><div class="val" id="exposureVal"></div></div>
+            <div class="row"><label>Bloom Boost</label><input id="bloom" type="range" min="0" max="2.5" step="0.01"/><div class="val" id="bloomVal"></div></div>
+            <div class="row"><label>Gamma</label><input id="gamma" type="range" min="0.8" max="2.4" step="0.01"/><div class="val" id="gammaVal"></div></div>
+            <div class="row"><label>Hue Shift</label><input id="hueShift" type="range" min="0" max="360" step="1"/><div class="val" id="hueShiftVal"></div></div>
+            <div class="row"><label>Saturation</label><input id="saturation" type="range" min="0" max="1.4" step="0.01"/><div class="val" id="saturationVal"></div></div>
+            <div class="row"><label>Glow Weight</label><input id="glow" type="range" min="0" max="3" step="0.01"/><div class="val" id="glowVal"></div></div>
+            <div class="row"><label>Transparent</label><input id="transparent" type="checkbox"/><div></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Motion / Structure</h4>
+          <div class="grid">
+            <div class="row"><label>Layer Density</label><input id="density" type="range" min="0.5" max="3" step="0.01"/><div class="val" id="densityVal"></div></div>
+            <div class="row"><label>Flow Speed</label><input id="speed" type="range" min="0" max="2" step="0.01"/><div class="val" id="speedVal"></div></div>
+            <div class="row"><label>Vortex</label><input id="vortex" type="range" min="0" max="2" step="0.01"/><div class="val" id="vortexVal"></div></div>
+            <div class="row"><label>Orbit (θ)</label><input id="theta" type="range" min="-3.1416" max="3.1416" step="0.0005"/><div class="val" id="thetaVal"></div></div>
+            <div class="row"><label>Parallax Follow</label><input id="parallax" type="range" min="0" max="1" step="0.01"/><div class="val" id="parallaxVal"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OGL (WebGL1-safe shader) -->
+  <script type="module">
+    import { Renderer, Program, Mesh, Triangle } from "https://cdn.skypack.dev/ogl";
+
+    const params = {
+      focal: [0.5, 0.5],
+      rotation: [1.0, 0.0],   // [cos(θ), sin(θ)]
+      renderScale: Math.min(0.95, window.devicePixelRatio || 1),
+
+      // brightness stack
+      exposure: 2.8,
+      bloom: 1.2,
+      gamma: 1.2,
+
+      // color/shape
+      density: 1.6,
+      hueShift: 200,
+      saturation: 1.0,
+      glow: 1.6,
+
+      // motion
+      speed: 0.8,
+      vortex: 0.8,
+      parallax: 0.8,
+
+      transparent: true
+    };
+
+    const host = document.getElementById("voidHost");
+    const cursorDot = document.getElementById("cursorDot");
+    const fpsVal = document.getElementById("fpsVal");
+
+    const vertexShader = `
+      attribute vec2 position;
+      attribute vec2 uv;
+      varying vec2 vUv;
+      void main(){
+        vUv = uv;
+        gl_Position = vec4(position, 0.0, 1.0);
+      }
+    `;
+
+    const fragmentShader = `
+      precision mediump float;
+      varying vec2 vUv;
+
+      uniform float uTime;
+      uniform vec3  uResolution;
+      uniform vec2  uFocal;
+      uniform vec2  uRotation;
+      uniform vec2  uMouse;
+
+      uniform float uDensity;
+      uniform float uHueShift;
+      uniform float uSat;
+      uniform float uGlow;
+      uniform float uSpeed;
+      uniform float uVortex;
+      uniform float uParallax;
+
+      uniform float uExposure;
+      uniform float uBloom;
+      uniform float uGamma;
+      uniform float uTransparent;
+
+      #define LAYERS 6
+      #define PI 3.14159265359
+
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+      float noise(vec2 p){
+        vec2 i = floor(p), f = fract(p);
+        float a = hash(i + vec2(0.0,0.0));
+        float b = hash(i + vec2(1.0,0.0));
+        float c = hash(i + vec2(0.0,1.0));
+        float d = hash(i + vec2(1.0,1.0));
+        vec2 u = f*f*(3.0-2.0*f);
+        return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+      }
+      float fbm(vec2 p){
+        float s=0.0, a=0.65;
+        for(int i=0;i<5;i++){
+          s += a * noise(p);
+          p = p*1.9 + 13.1;
+          a *= 0.52;
+        }
+        return s;
+      }
+      vec3 hsv2rgb(vec3 c){
+        vec4 K=vec4(1., 2./3., 1./3., 3.);
+        vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www);
+        return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
+      }
+
+      void main(){
+        vec2 res = uResolution.xy;
+        vec2 focalPx = uFocal * res;
+        vec2 uv = (vUv * res - focalPx) / max(res.y, 1.0);
+
+        // orbit rotation
+        mat2 R = mat2(uRotation.x, -uRotation.y, uRotation.y, uRotation.x);
+        uv = R * uv;
+
+        // mouse in same space (origin at focal)
+        vec2 mp = (uMouse * res - focalPx) / max(res.y, 1.0);
+
+        vec3 ro = vec3(0.0, 0.0, -1.25);
+        vec3 rd = normalize(vec3(uv, 1.6));
+
+        float t = uTime * (0.5 + 0.7*uSpeed);
+        float sv = uVortex * 0.32 * sin(t*0.42);
+        mat2 S = mat2(cos(sv), -sin(sv), sin(sv), cos(sv));
+        rd.xy = S * rd.xy;
+
+        vec3 col = vec3(0.0);
+        float alpha = 0.0;
+
+        // ------------------------------------------------------
+        // IMPORTANT CHANGE: shift sampling by +mp so the visual
+        // follows the cursor in the SAME direction.
+        // ------------------------------------------------------
+        for(int i=0;i<LAYERS;i++){
+          float fi = float(i);
+          float depth = mix(0.18, 2.4, fi / float(LAYERS-1));
+          vec3 p3 = ro + rd * depth;
+
+          vec2 p = p3.xy;
+          float ang = atan(p.y, p.x) + 0.55 * sin(t + fi*0.66);
+          float rad = length(p);
+          p = vec2(cos(ang), sin(ang)) * rad;
+
+          float sc = 1.3 + 0.7*uDensity;
+          // add positive displacement toward mouse
+          vec2 q = p * sc + vec2(0.0, t*0.55 + fi*0.4) + mp * (0.9 * uParallax);
+
+          float n = fbm(q);
+          float fil = smoothstep(0.45, 0.92, n + 0.18*sin(6.0*rad - t*1.6));
+
+          float a = fil * mix(0.10, 0.28, 1.0 - fi/float(LAYERS-1));
+          float g = smoothstep(0.55, 0.96, n) * (0.45 + 0.55*uBloom);
+
+          float hue = fract(uHueShift/360.0 + 0.09*fi + 0.10*n);
+          float val = clamp(fil + g*(0.8+0.6*uGlow), 0.0, 1.5);
+          vec3 base = hsv2rgb(vec3(hue, clamp(uSat,0.,1.4), val));
+          base += vec3(0.35, 0.55, 1.0) * g * (0.4 + 0.6*uGlow) * (0.35 + 0.65*uBloom);
+
+          col = mix(col, base, a);
+          alpha = clamp(alpha + a + g*0.12, 0.0, 1.0);
+        }
+
+        float vig = mix(1.0, smoothstep(1.25, 0.05, length(uv)), 0.55);
+        col *= vig;
+
+        col *= uExposure;
+        col = pow(max(col, 0.0), vec3(1.0 / max(uGamma, 0.01)));
+        col = col / (1.0 + 0.35*col);
+
+        vec4 opaque = vec4(col, 1.0);
+        vec4 trans  = vec4(col, alpha);
+        gl_FragColor = mix(opaque, trans, uTransparent);
+      }
+    `;
+
+    let renderer, gl, program, mesh, rafId;
+    const mouse = { x: 0.5, y: 0.5, sx: 0.5, sy: 0.5 };
+    let currentDpr = Math.max(0.6, Math.min(params.renderScale, (window.devicePixelRatio||1)));
+    const perf = { frames: 0, last: performance.now(), fps: 60 };
+
+    function initRenderer() {
+      renderer = new Renderer({
+        alpha: true,
+        premultipliedAlpha: false,
+        antialias: true,
+        dpr: currentDpr
+      });
+      gl = renderer.gl;
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.clearColor(0,0,0,0);
+
+      function resize() {
+        const w = host.clientWidth, h = host.clientHeight;
+        renderer.dpr = currentDpr;
+        renderer.setSize(w, h);
+        if (program) {
+          program.uniforms.uResolution.value = new Float32Array([gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height, 1)]);
+        }
+      }
+      window.addEventListener("resize", resize, { passive: true });
+      resize();
+
+      const geometry = new Triangle(gl);
+      program = new Program(gl, {
+        vertex: vertexShader,
+        fragment: fragmentShader,
+        uniforms: {
+          uTime: { value: 0 },
+          uResolution: { value: new Float32Array([gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height,1)]) },
+          uFocal: { value: new Float32Array(params.focal) },
+          uRotation: { value: new Float32Array(params.rotation) },
+          uMouse: { value: new Float32Array([mouse.sx, mouse.sy]) },
+
+          uDensity: { value: params.density },
+          uHueShift: { value: params.hueShift },
+          uSat: { value: params.saturation },
+          uGlow: { value: params.glow },
+          uSpeed: { value: params.speed },
+          uVortex: { value: params.vortex },
+          uParallax: { value: params.parallax },
+
+          uExposure: { value: params.exposure },
+          uBloom: { value: params.bloom },
+          uGamma: { value: params.gamma },
+          uTransparent: { value: params.transparent ? 1.0 : 0.0 }
+        }
+      });
+
+      mesh = new Mesh(gl, { geometry, program });
+      host.appendChild(gl.canvas);
+
+      const onPointerMove = (clientX, clientY) => {
+        const rect = host.getBoundingClientRect();
+        const x = (clientX - rect.left) / rect.width;
+        const y = 1.0 - (clientY - rect.top) / rect.height;
+        mouse.x = Math.max(0, Math.min(1, x));
+        mouse.y = Math.max(0, Math.min(1, y));
+      };
+      window.addEventListener("mousemove", (e) => onPointerMove(e.clientX, e.clientY), { passive: true });
+      host.addEventListener("touchmove", (e) => { const t = e.touches[0]; if (t) onPointerMove(t.clientX, t.clientY); }, { passive: true });
+
+      const loop = (t) => {
+        rafId = requestAnimationFrame(loop);
+        const timeSec = t * 0.001;
+
+        // FPS feedback & auto DPR
+        perf.frames++;
+        const now = performance.now();
+        if (now - perf.last >= 500) {
+          perf.fps = Math.round((perf.frames * 1000) / (now - perf.last));
+          perf.frames = 0; perf.last = now;
+          fpsVal.textContent = `${perf.fps}`;
+          if (perf.fps < 48 && currentDpr > 0.7) { currentDpr = Math.max(0.7, currentDpr - 0.05); rebuildRenderer(); }
+          else if (perf.fps > 58 && currentDpr < params.renderScale) { currentDpr = Math.min(params.renderScale, currentDpr + 0.05); rebuildRenderer(); }
+          document.getElementById("renderScale").value = currentDpr;
+          document.getElementById("renderScaleVal").textContent = currentDpr.toFixed(2) + "×";
+        }
+
+        // smoothing
+        const k = 0.35;
+        mouse.sx += (mouse.x - mouse.sx) * k;
+        mouse.sy += (mouse.y - mouse.sy) * k;
+
+        // uniforms
+        program.uniforms.uTime.value = timeSec * (0.6 + params.speed*0.9);
+        program.uniforms.uMouse.value[0] = mouse.sx;
+        program.uniforms.uMouse.value[1] = mouse.sy;
+
+        program.uniforms.uFocal.value[0] = params.focal[0];
+        program.uniforms.uFocal.value[1] = params.focal[1];
+        program.uniforms.uRotation.value[0] = params.rotation[0];
+        program.uniforms.uRotation.value[1] = params.rotation[1];
+
+        program.uniforms.uDensity.value = params.density;
+        program.uniforms.uHueShift.value = params.hueShift;
+        program.uniforms.uSat.value = params.saturation;
+        program.uniforms.uGlow.value = params.glow;
+        program.uniforms.uVortex.value = params.vortex;
+        program.uniforms.uParallax.value = params.parallax;
+
+        program.uniforms.uExposure.value = params.exposure;
+        program.uniforms.uBloom.value = params.bloom;
+        program.uniforms.uGamma.value = params.gamma;
+
+        renderer.render({ scene: mesh });
+
+        // UI white dot (same space as uMouse)
+        const rect = host.getBoundingClientRect();
+        const px = mouse.sx * rect.width;
+        const py = (1 - mouse.sy) * rect.height;
+        cursorDot.style.left = `${px}px`;
+        cursorDot.style.top  = `${py}px`;
+      };
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function rebuildRenderer() {
+      cancelAnimationFrame(rafId);
+      try { gl && gl.canvas && gl.canvas.parentNode === host && host.removeChild(gl.canvas); } catch {}
+      initRenderer();
+    }
+
+    (function initUI(){
+      const setR = (id,key,fmt=v=>+v)=>{
+        const el=document.getElementById(id);
+        if (key && params[key] !== undefined) el.value = params[key];
+        el.addEventListener("input", ()=>{
+          const v = fmt(el.value);
+          if (id === "renderScale") {
+            params.renderScale = v;
+            currentDpr = Math.max(0.6, Math.min(v, (window.devicePixelRatio||1)));
+            document.getElementById("renderScaleVal").textContent = currentDpr.toFixed(2) + "×";
+            rebuildRenderer();
+            return;
+          }
+          if (key === "theta") {
+            document.getElementById("thetaVal").textContent = Number(v).toFixed(4);
+            params.rotation = [Math.cos(v), Math.sin(v)];
+            return;
+          }
+          if (key) params[key]=v;
+          const vv=document.getElementById(id+"Val"); if (vv) vv.textContent=(+v).toFixed(2);
+        });
+      };
+
+      setR("renderScale"); document.getElementById("renderScaleVal").textContent = currentDpr.toFixed(2) + "×";
+
+      setR("exposure","exposure"); document.getElementById("exposureVal").textContent=params.exposure.toFixed(2);
+      setR("bloom","bloom"); document.getElementById("bloomVal").textContent=params.bloom.toFixed(2);
+      setR("gamma","gamma"); document.getElementById("gammaVal").textContent=params.gamma.toFixed(2);
+
+      setR("density","density"); document.getElementById("densityVal").textContent=params.density.toFixed(2);
+      setR("hueShift","hueShift", Number); document.getElementById("hueShiftVal").textContent=String(params.hueShift);
+      setR("saturation","saturation"); document.getElementById("saturationVal").textContent=params.saturation.toFixed(2);
+      setR("glow","glow"); document.getElementById("glowVal").textContent=params.glow.toFixed(2);
+      setR("speed","speed"); document.getElementById("speedVal").textContent=params.speed.toFixed(2);
+      setR("vortex","vortex"); document.getElementById("vortexVal").textContent=params.vortex.toFixed(2);
+      setR("parallax","parallax"); document.getElementById("parallaxVal").textContent=params.parallax.toFixed(2);
+
+      const th=document.getElementById("theta");
+      th.value=0; document.getElementById("thetaVal").textContent="0.0000";
+      th.addEventListener("input", ()=> {
+        const a=+th.value; document.getElementById("thetaVal").textContent=a.toFixed(4);
+        params.rotation=[Math.cos(a), Math.sin(a)];
+      });
+
+      const trans=document.getElementById("transparent");
+      trans.checked=params.transparent;
+      trans.addEventListener("change", ()=>{
+        params.transparent=!!trans.checked;
+        if (program && program.uniforms && program.uniforms.uTransparent) {
+          program.uniforms.uTransparent.value = params.transparent ? 1.0 : 0.0;
+        }
+      });
+    })();
+
+    initRenderer();
+  </script>
+</body>
+</html>
+```

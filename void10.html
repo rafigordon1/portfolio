@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Aurora Vortex — Reactive Visual</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
+    .root { position: relative; width: 100%; height: 100%; }
+
+    /* Render host */
+    #auroraHost { position: absolute; inset: 0; overflow: hidden; border-radius: 12px; cursor: none; }
+
+    /* Hidden but live camera (mirrored for the user) */
+    video#cam {
+      position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none;
+      transform: scaleX(-1); /* mirror the user */
+    }
+
+    /* White cursor dot (highly accurate) */
+    .cursor-dot {
+      position: absolute; width: 10px; height: 10px; border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 18px rgba(255,255,255,.85), 0 0 2px rgba(255,255,255,.9) inset;
+      pointer-events: none; z-index: 15; transform: translate(-50%,-50%);
+      opacity: .95; transition: opacity .15s ease, transform .05s linear;
+    }
+
+    /* Control panel (hover to open), left side */
+    .panel {
+      position: absolute; top: 12px; left: 12px; z-index: 20; color: #fff;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      user-select: none;
+    }
+    .pill {
+      padding: 7px 12px; font-size: 12px; letter-spacing: .04em; border-radius: 999px;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.20));
+      border: 1px solid rgba(255,255,255,.16);
+      cursor: default; transition: background 160ms ease, border 160ms ease;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+    .panel:hover .pill { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(0,0,0,.26)); border-color: rgba(255,255,255,.24); }
+
+    .drop {
+      position: absolute; top: 36px; left: 0; width: min(420px, 92vw);
+      max-height: 0; overflow: hidden; border-radius: 14px;
+      background: rgba(10,10,12,.30); border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(12px); padding: 0 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.45);
+      transition: max-height 220ms ease, padding 220ms ease;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent;
+    }
+    .panel:hover .drop { max-height: 82vh; overflow: auto; padding: 12px 14px 16px; }
+    .drop::-webkit-scrollbar { width: 10px; }
+    .drop::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 10px; }
+
+    .section { margin-top: 12px; }
+    .section h4 {
+      margin: 8px 0 10px; font-size: 11px; text-transform: uppercase;
+      letter-spacing: .14em; opacity: .9; display: flex; align-items: center; gap: 8px;
+    }
+    .section h4::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: linear-gradient(90deg, #9cffd0, #70a8ff);
+      box-shadow: 0 0 10px rgba(112,168,255,.9);
+    }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .row {
+      display: grid; grid-template-columns: 120px 1fr 72px; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 10px;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.10);
+    }
+    .row label { font-size: 12px; opacity: .92; }
+    .val {
+      justify-self: end; min-width: 52px; text-align: right; font-size: 11px;
+      font-variant-numeric: tabular-nums; padding: 3px 8px; border-radius: 999px;
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+    }
+
+    .selectwrap {
+      position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+      border-radius: 10px; padding: 4px 8px;
+    }
+    .selectwrap select {
+      width: 100%; font-size: 13px; color: #fff; background: transparent;
+      border: none; outline: none; appearance: none; -webkit-appearance: none;
+      padding: 6px 28px 6px 6px;
+    }
+    .selectwrap:after { content: "▾"; color: rgba(255,255,255,.85); margin-left: -20px; margin-right: 4px; pointer-events: none; }
+    .badge {
+      margin-left: 8px; font-size: 11px; padding: 4px 8px; border-radius: 999px;
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+    }
+
+    input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; outline: none;
+      background: linear-gradient(90deg, rgba(255,255,255,.3), rgba(255,255,255,.1)); }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; border: 1px solid rgba(0,0,0,.2); box-shadow: 0 1px 6px rgba(0,0,0,.5);
+    }
+    input[type="checkbox"] { transform: translateY(1px); }
+    .note { font-size: 11px; opacity: .80; line-height: 1.4; margin-top: 6px; }
+
+    /* Eye calibration overlay (larger) */
+    .overlay {
+      position: absolute; inset: 0; z-index: 30; display: none; place-items: center;
+      background: rgba(0,0,0,.72); color: #fff; text-align: center;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    .overlay.show { display: grid; }
+    .calib-wrap { position: relative; width: min(1800px, 96vw); }
+    .calib-card {
+      position: relative; z-index: 2; border-radius: 14px; padding: 16px 18px; margin: 0 auto 14px;
+      background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(10px);
+    }
+    .calib-card h2 { margin: 0 0 8px; font-size: 20px; letter-spacing: .02em; }
+    .calib-card .meta { font-size: 12px; opacity: .85; margin-bottom: 8px; }
+    .calib-card .foot { font-size: 12px; opacity: .8; margin-top: 8px; }
+    .btn {
+      display: inline-block; margin-top: 10px; padding: 10px 14px; border-radius: 999px;
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+      color: #fff; cursor: pointer; transition: background .15s ease; font-size: 13px; letter-spacing: .02em;
+    }
+    .btn[disabled] { opacity: .55; cursor: default; }
+    .btn:hover:not([disabled]) { background: rgba(255,255,255,.2); }
+    .progress { font-size: 12px; opacity: .9; margin-top: 6px; }
+
+    .calib-frame {
+      position: relative; width: 100%; height: min(82vh, 900px); margin: 0 auto;
+      border-radius: 16px; border: 1px solid rgba(255,255,255,.20);
+      background: rgba(0,0,0,.18); box-shadow: inset 0 0 20px rgba(0,0,0,.45); overflow: visible;
+    }
+    .targets { position: absolute; inset: 0; pointer-events: none; }
+    .t {
+      position: absolute; width: 20px; height: 20px; border-radius: 50%;
+      background: #e0f2f1; opacity: .95; border: 1px solid rgba(255,255,255,.9);
+      box-shadow: 0 0 18px rgba(255,255,255,.65);
+      transform: translate(-50%, -50%);
+      transition: transform .08s ease, background .08s ease, box-shadow .08s ease;
+    }
+    .t.active { background: #00d26a; box-shadow: 0 0 36px rgba(0,210,106,.95); transform: translate(-50%, -50%) scale(1.25); }
+  </style>
+</head>
+<body>
+  <div class="root">
+    <div id="auroraHost"></div>
+    <div id="cursorDot" class="cursor-dot"></div>
+    <video id="cam" playsinline autoplay muted></video>
+
+    <!-- Eye calibration overlay -->
+    <div id="eyeCalib" class="overlay">
+      <div class="calib-wrap">
+        <div class="calib-card">
+          <h2>Eye Tracking Calibration</h2>
+          <div class="meta">Follow the green dots with your eyes. Try to keep your head steady.</div>
+          <div class="progress" id="calibProgress">Ready.</div>
+          <button id="eyeStartBtn" class="btn">Begin Calibration</button>
+          <div class="foot">Tip: sit ~50–70 cm from the screen with even lighting.</div>
+        </div>
+        <div class="calib-frame" id="calibFrame">
+          <div class="targets" id="calibTargets"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Control panel (opens on hover) -->
+    <div class="panel">
+      <div class="pill">⚙︎ Aurora</div>
+      <div class="drop">
+        <div class="section">
+          <h4>Input</h4>
+          <div class="grid">
+            <div class="row">
+              <label>Source</label>
+              <div class="selectwrap">
+                <select id="inputSource">
+                  <option value="mouse">Mouse</option>
+                  <option value="hand">Hand</option>
+                  <option value="body">Body</option>
+                  <option value="eye">Eye</option> <!-- Eye is LAST -->
+                </select>
+                <span class="badge" id="statusVal">Idle</span>
+              </div>
+            </div>
+            <div class="note" id="inputNote"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Field</h4>
+          <div class="grid">
+            <div class="row"><label>Density</label><input id="density" type="range" min="0.25" max="3" step="0.01"/><div class="val" id="densityVal"></div></div>
+            <div class="row"><label>Hue Shift</label><input id="hueShift" type="range" min="0" max="360" step="1"/><div class="val" id="hueShiftVal"></div></div>
+            <div class="row"><label>Saturation</label><input id="saturation" type="range" min="0" max="1" step="0.01"/><div class="val" id="saturationVal"></div></div>
+            <div class="row"><label>Glow</label><input id="glow" type="range" min="0" max="1.5" step="0.01"/><div class="val" id="glowVal"></div></div>
+            <div class="row"><label>Transparent</label><input id="transparent" type="checkbox"/><div></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Motion</h4>
+          <div class="grid">
+            <div class="row"><label>Global Speed</label><input id="speed" type="range" min="0" max="5" step="0.01"/><div class="val" id="speedVal"></div></div>
+            <div class="row"><label>Vortex Drift</label><input id="starSpeed" type="range" min="0" max="5" step="0.01"/><div class="val" id="starSpeedVal"></div></div>
+            <div class="row"><label>Auto Rotate</label><input id="rotationSpeed" type="range" min="-2" max="2" step="0.001"/><div class="val" id="rotationSpeedVal"></div></div>
+            <div class="row"><label>Twinkle</label><input id="twinkle" type="range" min="0" max="1" step="0.01"/><div class="val" id="twinkleVal"></div></div>
+            <div class="row"><label>Smoothing</label><input id="smoothing" type="range" min="0.02" max="0.35" step="0.01"/><div class="val" id="smoothingVal"></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Interaction</h4>
+          <div class="grid">
+            <div class="row"><label>Repulsion</label><input id="repulseOn" type="checkbox"/><div></div></div>
+            <div class="row"><label>Strength</label><input id="repulseStrength" type="range" min="0" max="6" step="0.05"/><div class="val" id="repulseStrengthVal"></div></div>
+            <div class="row"><label>Auto Center Push</label><input id="autoCenter" type="range" min="0" max="6" step="0.05"/><div class="val" id="autoCenterVal"></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Framing</h4>
+          <div class="grid">
+            <div class="row"><label>Focal X</label><input id="focalX" type="range" min="0" max="1" step="0.001"/><div class="val" id="focalXVal"></div></div>
+            <div class="row"><label>Focal Y</label><input id="focalY" type="range" min="0" max="1" step="0.001"/><div class="val" id="focalYVal"></div></div>
+            <div class="row"><label>Rotate (θ)</label><input id="theta" type="range" min="-3.1416" max="3.1416" step="0.0005"/><div class="val" id="thetaVal"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OGL (WebGL) + tracking -->
+  <script type="module">
+    import { Renderer, Program, Mesh, Color, Triangle } from "https://cdn.skypack.dev/ogl";
+
+    /* ---------------- Parameters ---------------- */
+    const params = {
+      focal: [0.5, 0.5],
+      rotation: [1.0, 0.0],
+      starSpeed: 0.7,
+      density: 1.25,
+      hueShift: 180,
+      speed: 1.0,
+      glowIntensity: 0.55,
+      saturation: 0.2,
+      mouseRepulsion: true,
+      repulsionStrength: 2.0,
+      twinkleIntensity: 0.35,
+      rotationSpeed: 0.06,
+      autoCenterRepulsion: 0.0,
+      transparent: true,
+      inputSource: "mouse",
+      smoothing: 0.10 // lower = snappier, higher = smoother
+    };
+
+    /* ---------------- DOM ---------------- */
+    const host = document.getElementById("auroraHost");
+    const statusEl = document.getElementById("statusVal");
+    const noteEl   = document.getElementById("inputNote");
+    const cursorDot = document.getElementById("cursorDot");
+    const videoEl = document.getElementById("cam");
+
+    const eyeOverlay  = document.getElementById("eyeCalib");
+    const eyeStartBtn = document.getElementById("eyeStartBtn");
+    const calibFrame  = document.getElementById("calibFrame");
+    const calibTargets= document.getElementById("calibTargets");
+    const calibProgress= document.getElementById("calibProgress");
+
+    /* -------- Eye calibration (quadratic) state -------- */
+    let eyeCalibrated = false;
+    // x' = a1*x + a2*y + a3*x^2 + a4*x*y + a5*y^2 + a6
+    // y' = b1*x + b2*y + b3*x^2 + b4*x*y + b5*y^2 + b6
+    let c = { a1:1,a2:0,a3:0,a4:0,a5:0,a6:0, b1:0,b2:1,b3:0,b4:0,b5:0,b6:0 };
+
+    /* ---------------- Shaders (NEW: Starflower Kaleidoscope) ---------------- */
+    const vertexShader = `
+      attribute vec2 uv;
+      attribute vec2 position;
+      varying vec2 vUv;
+      void main(){
+        vUv = uv;
+        gl_Position = vec4(position, 0.0, 1.0);
+      }
+    `;
+
+    // Totally different look: radial kaleidoscope bloom with crystalline rays + ring pulses.
+    // Parameters still map 1:1 to the same UI controls.
+    const fragmentShader = `
+      precision highp float;
+      varying vec2 vUv;
+
+      uniform float uTime;
+      uniform vec3  uResolution;
+      uniform vec2  uFocal;
+      uniform vec2  uRotation;
+      uniform float uStarClock;
+      uniform float uDensity;
+      uniform float uHueShift;
+      uniform float uSpeed;
+      uniform vec2  uMouse;
+      uniform float uGlow;
+      uniform float uSat;
+      uniform bool  uMouseRepulse;
+      uniform float uTwinkle;
+      uniform float uRotSpeed;
+      uniform float uRepulse;
+      uniform float uMouseActive;
+      uniform float uAutoCenter;
+      uniform bool  uTransparent;
+
+      #define TAU 6.28318530718
+
+      float hash21(vec2 p){
+        p = fract(p*vec2(234.34, 489.23));
+        p += dot(p, p+34.23);
+        return fract(p.x*p.y);
+      }
+
+      // value noise (2D)
+      float vnoise(vec2 p){
+        vec2 i = floor(p), f = fract(p);
+        float a = hash21(i);
+        float b = hash21(i+vec2(1.,0.));
+        float c = hash21(i+vec2(0.,1.));
+        float d = hash21(i+vec2(1.,1.));
+        vec2 u = f*f*(3.0-2.0*f);
+        return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+      }
+
+      vec3 hsv2rgb(vec3 c){
+        vec4 K = vec4(1., 2./3., 1./3., 3.);
+        vec3 p = abs(fract(c.xxx+K.xyz)*6.-K.www);
+        return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
+      }
+
+      // convert polar->cartesian
+      vec2 fromPolar(float r, float a){
+        return vec2(cos(a), sin(a))*r;
+      }
+
+      // star-ray intensity: sum of gaussian-like lines along N directions
+      float starRays(vec2 p, float rays, float sharp){
+        float s = 0.0;
+        float k = TAU / rays;
+        float r = length(p)+1e-4;
+        // scale with radius to keep thickness consistent
+        float sc = mix(1.5, 5.5, clamp(r, 0.0, 1.0));
+        for (int i=0;i<16;i++){
+          if(float(i) >= 16.0) break;
+          if(float(i) >= rays) break;
+          float a = float(i)*k;
+          vec2 d = vec2(cos(a), sin(a));
+          float dist = abs(dot(normalize(p), d)); // angular distance (0..1)
+          // convert angular distance to approx line distance
+          float line = exp(-pow(dist*sc, sharp));
+          s += line;
+        }
+        return s / max(rays, 1.0);
+      }
+
+      // mirror angle into kaleidoscope wedges
+      float kaleidoAngle(float a, float seg){
+        float k = TAU/seg;
+        float aa = mod(a, 2.0*k);
+        return (aa > k) ? (2.0*k - aa) : aa;
+      }
+
+      void main(){
+        vec2 focalPx = uFocal*uResolution.xy;
+        // pixel-correct uv around focal point
+        vec2 uv = (vUv*uResolution.xy - focalPx) / max(uResolution.y, 1.);
+
+        // Auto-center push or interactive offset/repulsion
+        if(uAutoCenter>0.){
+          float d=length(uv); vec2 dir=normalize(uv+1e-5);
+          uv += dir*(uAutoCenter/(d+0.1))*0.05;
+        } else if(uMouseRepulse){
+          vec2 mUV=(uMouse*uResolution.xy - focalPx)/max(uResolution.y,1.);
+          float md=length(uv-mUV); vec2 dir=normalize(uv-mUV+1e-5);
+          uv += dir*(uRepulse/(md+0.1))*0.06*uMouseActive;
+        } else {
+          vec2 m = uMouse - vec2(0.5);
+          uv += m * 0.10 * uMouseActive;
+        }
+
+        // global rotation + manual theta rotation from UI (encoded in uRotation)
+        float ang = uTime*uRotSpeed;
+        mat2 R = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
+        uv = R*uv;
+        uv = mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x)*uv;
+
+        // slight domain warp for organic feel
+        float t = uTime * (0.5 + uSpeed*0.8);
+        vec2 warp = vec2(
+          vnoise(uv*2.1 + vec2(0.7, -1.3) + uStarClock*0.6),
+          vnoise(uv*2.1 + vec2(-1.9, 0.4) - uStarClock*0.45)
+        );
+        uv += (warp - 0.5) * 0.18 * (0.6 + 0.6*uDensity);
+
+        // convert to polar
+        float r = length(uv);
+        float a = atan(uv.y, uv.x);
+
+        // kaleidoscope wedges count derived from Density
+        float seg = floor(mix(5.0, 18.0, clamp(uDensity/3.0, 0.0, 1.0)));
+        float aK = kaleidoAngle(a, seg);
+
+        // reconstruct mirrored coords for star calc
+        vec2 kUV = fromPolar(r, aK);
+
+        // crystalline star rays
+        float rays = mix(6.0, 14.0, clamp(uDensity/3.0, 0.0, 1.0));
+        float raySharp = mix(1.6, 2.6, clamp(uGlow, 0.0, 1.0));
+        float sRays = starRays(kUV, rays, raySharp);
+
+        // pulsing rings
+        float ringFreq = mix(6.0, 22.0, clamp(uDensity/3.0, 0.0, 1.0));
+        float rings = 0.5 + 0.5*sin(r*ringFreq - t*1.8);
+
+        // petal modulation from mirrored angle
+        float petalFreq = mix(2.5, 9.5, clamp(uDensity/3.0, 0.0, 1.0));
+        float petals = 0.5 + 0.5*cos(aK*petalFreq + r*3.0 - t*1.2);
+
+        // sparkle (grid hash + twinkle)
+        vec2 g = floor((uv + 0.5)*vec2(10.0 + 40.0*uDensity));
+        float tw = uTwinkle * (0.4 + 0.6*sin(t*2.7 + hash21(g)*TAU));
+        float sparkle = smoothstep(0.8, 1.0, vnoise(uv*6.0 + t*0.8)) * tw;
+
+        // combine fields
+        float core = pow(sRays, 1.25) * 0.85 + rings*0.35 + petals*0.3;
+        core = smoothstep(0.35, 0.95, core);
+
+        // color palette (hue varies by wedge index + radius + drift)
+        float wedgeIdx = floor((a + TAU*0.5) / (TAU/seg));
+        float hue = fract((uHueShift/360.0) + wedgeIdx/seg + 0.12*sin(r*1.5 - t*0.4) + 0.05*vnoise(uv*2.0 - t*0.2));
+        float sat = clamp(uSat + 0.35*core, 0.0, 1.0);
+        float val = clamp(0.20 + core*0.9 + sparkle, 0.0, 1.0);
+        vec3 col = hsv2rgb(vec3(hue, sat, val));
+
+        // glow falloff from center
+        float gfall = smoothstep(1.6, 0.2, r) * uGlow;
+        col += col * gfall * 0.5;
+
+        // subtle vignette
+        float vig = smoothstep(1.8, 0.15, r) * 0.22;
+        col *= (1.0 - vig);
+
+        if(uTransparent){
+          float alpha = smoothstep(0.0, 0.35, dot(col, vec3(0.333)));
+          gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
+        } else {
+          gl_FragColor = vec4(col, 1.0);
+        }
+      }
+    `;
+
+    /* ---------------- GL setup ---------------- */
+    let renderer, gl, program, mesh, rafId;
+    const targetMouse = { x: 0.5, y: 0.5 };
+    const smoothMouse = { x: 0.5, y: 0.5 };
+    const targetActive = { v: 0.0 };
+    const smoothActive = { v: 0.0 };
+
+    /* Eye-mode cursor policy */
+    let lastPointerTs = 0;
+
+    function initRenderer() {
+      renderer = new Renderer({ alpha: params.transparent, premultipliedAlpha: false, antialias: true });
+      gl = renderer.gl;
+      if (params.transparent) {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.clearColor(0,0,0,0);
+      } else {
+        gl.clearColor(0,0,0,1);
+      }
+
+      function resize() {
+        const w = host.clientWidth, h = host.clientHeight;
+        renderer.setSize(w, h);
+        if (program) {
+          program.uniforms.uResolution.value = new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height, 1));
+        }
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      const geometry = new Triangle(gl);
+      program = new Program(gl, {
+        vertex: vertexShader,
+        fragment: fragmentShader,
+        uniforms: {
+          uTime:        { value: 0 },
+          uResolution:  { value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height,1)) },
+          uFocal:       { value: new Float32Array(params.focal) },
+          uRotation:    { value: new Float32Array(params.rotation) },
+          uStarClock:   { value: 0 },
+          uDensity:     { value: params.density },
+          uHueShift:    { value: params.hueShift },
+          uSpeed:       { value: params.speed },
+          uMouse:       { value: new Float32Array([smoothMouse.x, smoothMouse.y]) },
+          uGlow:        { value: params.glowIntensity },
+          uSat:         { value: params.saturation },
+          uMouseRepulse:{ value: params.mouseRepulsion },
+          uTwinkle:     { value: params.twinkleIntensity },
+          uRotSpeed:    { value: params.rotationSpeed },
+          uRepulse:     { value: params.repulsionStrength },
+          uMouseActive: { value: 0.0 },
+          uAutoCenter:  { value: params.autoCenterRepulsion },
+          uTransparent: { value: params.transparent }
+        }
+      });
+
+      mesh = new Mesh(gl, { geometry, program });
+      host.appendChild(gl.canvas);
+
+      const onPointerMove = (clientX, clientY) => {
+        const rect = host.getBoundingClientRect();
+        const x = (clientX - rect.left) / rect.width;         // direct mapping (not inverted)
+        const y = (clientY - rect.top)  / rect.height;        // direct mapping
+        targetMouse.x = clamp01(x);
+        targetMouse.y = clamp01(y);
+        targetActive.v = 1.0;
+        lastPointerTs = performance.now();
+      };
+
+      host.addEventListener("mousemove", (e) => onPointerMove(e.clientX, e.clientY));
+      host.addEventListener("mouseleave", () => { targetActive.v = 0.0; });
+      host.addEventListener("touchmove", (e) => {
+        const t = e.touches[0];
+        if (t) onPointerMove(t.clientX, t.clientY);
+      }, { passive: true });
+      host.addEventListener("touchend", () => { targetActive.v = 0.0; });
+
+      const loop = (t) => {
+        rafId = requestAnimationFrame(loop);
+        const timeSec = t * 0.001;
+
+        // Route input each frame (mouse/hand/body/eye)
+        const routed = routeInput();
+        targetMouse.x = routed.x;
+        targetMouse.y = routed.y;
+        targetActive.v = routed.active;
+
+        // Adjustable smoothing (accuracy-first)
+        const k = params.smoothing; // 0.02..0.35
+        smoothMouse.x += (targetMouse.x - smoothMouse.x) * k;
+        smoothMouse.y += (targetMouse.y - smoothMouse.y) * k;
+        smoothActive.v += (targetActive.v - smoothActive.v) * k;
+
+        program.uniforms.uTime.value = timeSec;
+        program.uniforms.uStarClock.value = (timeSec * params.starSpeed) / 10.0;
+        program.uniforms.uMouse.value[0] = smoothMouse.x;
+        program.uniforms.uMouse.value[1] = smoothMouse.y;
+        program.uniforms.uMouseActive.value = smoothActive.v;
+
+        // live uniforms
+        program.uniforms.uFocal.value[0]      = params.focal[0];
+        program.uniforms.uFocal.value[1]      = params.focal[1];
+        program.uniforms.uRotation.value[0]   = params.rotation[0];
+        program.uniforms.uRotation.value[1]   = params.rotation[1];
+        program.uniforms.uDensity.value       = params.density;
+        program.uniforms.uHueShift.value      = params.hueShift;
+        program.uniforms.uSpeed.value         = params.speed;
+        program.uniforms.uGlow.value          = params.glowIntensity;
+        program.uniforms.uSat.value           = params.saturation;
+        program.uniforms.uMouseRepulse.value  = params.mouseRepulsion;
+        program.uniforms.uTwinkle.value       = params.twinkleIntensity;
+        program.uniforms.uRotSpeed.value      = params.rotationSpeed;
+        program.uniforms.uRepulse.value       = params.repulsionStrength;
+        program.uniforms.uAutoCenter.value    = params.autoCenterRepulsion;
+        program.uniforms.uTransparent.value   = params.transparent;
+
+        renderer.render({ scene: mesh });
+
+        // Pixel-accurate cursor dot (mapped 1:1 to input space)
+        const rect = host.getBoundingClientRect();
+        const px = smoothMouse.x * rect.width;
+        const py = smoothMouse.y * rect.height;
+        cursorDot.style.left = `${px}px`;
+        cursorDot.style.top  = `${py}px`;
+
+        if (params.inputSource === "eye") {
+          const idle = performance.now() - lastPointerTs;
+          cursorDot.style.opacity = idle < 1000 ? "0.95" : "0";
+        } else {
+          cursorDot.style.opacity = smoothActive.v > 0.02 ? "0.95" : "0.55";
+        }
+      };
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function rebuildTransparency() {
+      cancelAnimationFrame(rafId);
+      try { gl && gl.canvas && gl.canvas.parentNode === host && host.removeChild(gl.canvas); } catch {}
+      gl?.getExtension("WEBGL_lose_CONTEXT")?.loseContext?.();
+      initRenderer();
+    }
+
+    /* ---------------- Input routing & trackers ---------------- */
+    const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+    const eye    = { x: 0.5, y: 0.5, conf: 0, ready: false };
+    const eyeRaw = { x: 0.5, y: 0.5, conf: 0, ready: false };
+    const hand   = { x: 0.5, y: 0.5, conf: 0, ready: false };
+    const body   = { x: 0.5, y: 0.5, conf: 0, ready: false };
+
+    function routeInput() {
+      switch (params.inputSource) {
+        case "eye":
+          if (!eyeCalibrated) return { x: targetMouse.x, y: targetMouse.y, active: 0.0 };
+          return eye.ready ? { x: eye.x, y: eye.y, active: Math.max(0.2, eye.conf) }
+                           : { x: targetMouse.x, y: targetMouse.y, active: 0.2 };
+        case "hand":
+          return hand.ready ? { x: hand.x, y: hand.y, active: Math.max(0.3, hand.conf) }
+                            : { x: targetMouse.x, y: targetMouse.y, active: 0.2 };
+        case "body":
+          return body.ready ? { x: body.x, y: body.y, active: Math.max(0.3, body.conf) }
+                            : { x: targetMouse.x, y: targetMouse.y, active: 0.2 };
+        default:
+          return { x: targetMouse.x, y: targetMouse.y, active: targetActive.v };
+      }
+    }
+
+    /* ---------------- UI ---------------- */
+    (function initUI(){
+      const sel = document.getElementById("inputSource");
+      sel.value = params.inputSource;
+      sel.addEventListener("change", async () => {
+        params.inputSource = sel.value;
+        await activateSource(sel.value);
+      });
+
+      const setR = (id,key,fmt=v=>+v)=> {
+        const el=document.getElementById(id);
+        if(key!==undefined) el.value=params[key];
+        el.addEventListener("input",()=> {
+          const v=fmt(el.value);
+          if(key!==undefined) params[key]=v;
+          const vv=document.getElementById(id+"Val");
+          if(vv){ vv.textContent=(+v).toFixed(id==="rotationSpeed"?3:(id==="hueShift"?0:2)); }
+          if(id==="transparent") rebuildTransparency();
+        });
+      };
+      const setC = (id,key)=> {
+        const el=document.getElementById(id);
+        el.checked=!!params[key];
+        el.addEventListener("change",()=> {
+          params[key]=!!el.checked;
+          if(id==="transparent") rebuildTransparency();
+        });
+      };
+
+      setR("density","density");
+      document.getElementById("densityVal").textContent=params.density.toFixed(2);
+      setR("hueShift","hueShift", Number);
+      document.getElementById("hueShiftVal").textContent=String(params.hueShift);
+      setR("saturation","saturation");
+      document.getElementById("saturationVal").textContent=params.saturation.toFixed(2);
+      setR("glow","glowIntensity");
+      document.getElementById("glowVal").textContent=params.glowIntensity.toFixed(2);
+      setC("transparent","transparent");
+
+      setR("speed","speed"); document.getElementById("speedVal").textContent=params.speed.toFixed(2);
+      setR("starSpeed","starSpeed"); document.getElementById("starSpeedVal").textContent=params.starSpeed.toFixed(2);
+      setR("rotationSpeed","rotationSpeed"); document.getElementById("rotationSpeedVal").textContent=params.rotationSpeed.toFixed(3);
+      setR("twinkle","twinkleIntensity"); document.getElementById("twinkleVal").textContent=params.twinkleIntensity.toFixed(2);
+      setR("smoothing","smoothing"); document.getElementById("smoothingVal").textContent=params.smoothing.toFixed(2);
+
+      setC("repulseOn","mouseRepulsion");
+      setR("repulseStrength","repulsionStrength"); document.getElementById("repulseStrengthVal").textContent=params.repulsionStrength.toFixed(2);
+      setR("autoCenter","autoCenterRepulsion"); document.getElementById("autoCenterVal").textContent=params.autoCenterRepulsion.toFixed(2);
+
+      const fx=document.getElementById("focalX"), fy=document.getElementById("focalY"), th=document.getElementById("theta");
+      fx.value=params.focal[0]; fy.value=params.focal[1];
+      th.value=Math.atan2(params.rotation[1], params.rotation[0]);
+      document.getElementById("focalXVal").textContent=params.focal[0].toFixed(3);
+      document.getElementById("focalYVal").textContent=params.focal[1].toFixed(3);
+      fx.addEventListener("input",()=>{ params.focal[0]=+fx.value; document.getElementById("focalXVal").textContent=params.focal[0].toFixed(3); });
+      fy.addEventListener("input",()=>{ params.focal[1]=+fy.value; document.getElementById("focalYVal").textContent=params.focal[1].toFixed(3); });
+      const setTH=()=>{ const a=+th.value; document.getElementById("thetaVal").textContent=Number(a).toFixed(4); params.rotation=[Math.cos(a), Math.sin(a)]; };
+      th.addEventListener("input", setTH); setTH();
+    })();
+
+    /* ---------------- MediaPipe & WebGazer ---------------- */
+    let mpHands = null, mpPose = null, mpCamera = null;
+    let usingCamera = false;
+    let webgazerReady = false;
+
+    async function ensureMediaPipe() {
+      if (mpHands && mpPose && mpCamera) return;
+      await Promise.all([
+        import("https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"),
+        import("https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"),
+        import("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js")
+      ]);
+      const Hands = window.Hands, Pose = window.Pose, Camera = window.Camera;
+
+      mpHands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+      mpHands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      mpHands.onResults(onHands);
+
+      mpPose = new Pose({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+      mpPose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      mpPose.onResults(onPose);
+
+      mpCamera = new Camera(videoEl, {
+        onFrame: async () => {
+          if (mpHands) await mpHands.send({ image: videoEl });
+          if (mpPose)  await mpPose.send({ image: videoEl });
+        },
+        width: 640, height: 480
+      });
+    }
+
+    async function startCamera() {
+      if (usingCamera) return;
+      try {
+        await ensureMediaPipe();
+        await mpCamera.start();
+        usingCamera = true;
+        setStatus("Camera: on");
+        noteEl.textContent = "Tip: ensure your hand/body is within the camera frame.";
+      } catch (e) {
+        setStatus("Camera: error");
+        noteEl.textContent = "Could not start camera. Check permissions.";
+        console.error(e);
+      }
+    }
+    async function stopCamera() {
+      if (!usingCamera) return;
+      try { mpCamera.stop(); } catch {}
+      const stream = videoEl.srcObject;
+      if (stream) { stream.getTracks().forEach(t => t.stop()); videoEl.srcObject = null; }
+      usingCamera = false;
+      setStatus("Camera: off");
+    }
+
+    function setStatus(text) { statusEl.textContent = text; }
+
+    function onHands(res) {
+      const lm = res.multiHandLandmarks && res.multiHandLandmarks[0];
+      if (!lm) { hand.ready = false; return; }
+      const tip = lm[8], thumb = lm[4];
+      let px = tip?.x, py = tip?.y;
+      if ((px === undefined || py === undefined) && thumb && lm[8]) {
+        px = (thumb.x + lm[8].x) * 0.5;
+        py = (thumb.y + lm[8].y) * 0.5;
+      }
+      if (px === undefined || py === undefined) { hand.ready = false; return; }
+      // video is mirrored for the user; invert x to map to screen
+      hand.x = clamp01(1 - px);
+      hand.y = clamp01(py);
+      hand.conf = (res.multiHandedness && res.multiHandedness[0]) ? 0.9 : 0.6;
+      hand.ready = true;
+    }
+
+    function onPose(res) {
+      const lm = res.poseLandmarks;
+      if (!lm || !lm.length) { body.ready = false; return; }
+      const nose = lm[0], lw = lm[15], rw = lm[16];
+      const xN = nose ? (1 - nose.x) : 0.5;       // mirror X to match user
+      let yUp;
+      if (lw && rw) {
+        const wristY = Math.min(lw.y, rw.y);
+        yUp = clamp01(wristY);
+      } else if (lw || rw) {
+        yUp = clamp01((lw?.y ?? rw.y));
+      } else {
+        yUp = clamp01(nose?.y ?? 0.5);
+      }
+      body.x = clamp01(xN);
+      body.y = clamp01(yUp);
+      body.conf = res.poseWorldLandmarks ? 0.9 : 0.6;
+      body.ready = true;
+    }
+
+    async function startWebgazer() {
+      if (webgazerReady) return;
+      setStatus("Eye: loading");
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://webgazer.cs.brown.edu/webgazer.js";
+        s.async = true;
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      window.webgazer
+        .setRegression("ridge").setTracker("clmtrackr")
+        .setGazeListener((pred) => {
+          if (!pred) { eyeRaw.ready=false; eye.ready=false; return; }
+          const xn = pred.x / window.innerWidth;
+          const yn = pred.y / window.innerHeight;
+          eyeRaw.x = clamp01(xn);
+          eyeRaw.y = clamp01(yn);
+          eyeRaw.conf = pred.confidence ?? 0.6;
+          eyeRaw.ready = true;
+
+          const x = eyeRaw.x, y = eyeRaw.y;
+          const mx = c.a1*x + c.a2*y + c.a3*x*x + c.a4*x*y + c.a5*y*y + c.a6;
+          const my = c.b1*x + c.b2*y + c.b3*x*x + c.b4*x*y + c.b5*y*y + c.b6;
+
+          // mirrored webcam expected: X direct, Y direct
+          eye.x = clamp01(mx);
+          eye.y = clamp01(my);
+          eye.conf = eyeRaw.conf;
+          eye.ready = true;
+        })
+        .showVideo(false).showFaceOverlay(false).showFaceFeedbackBox(false).showPredictionPoints(false)
+        .begin().then(()=> {
+          webgazerReady = true;
+          setStatus("Eye: ready");
+          noteEl.textContent = "Begin calibration, then keep your head steady.";
+        })
+        .catch((e)=> {
+          setStatus("Eye: error");
+          noteEl.textContent = "Eye tracking failed to load.";
+          console.error(e);
+        });
+    }
+    async function stopWebgazer(){
+      if (!webgazerReady) return;
+      try{ await window.webgazer.end(); }catch{}
+      try{ await window.webgazer.pause(); }catch{}
+      webgazerReady=false;
+      setStatus("Eye: off");
+    }
+
+    /* ------------- Wider boxed calibration 6×5 ------------- */
+    const xs = [0.02, 0.20, 0.38, 0.62, 0.80, 0.98];
+    const ys = [0.04, 0.25, 0.50, 0.75, 0.96];
+    const targetPts = [];
+    for (let j = 0; j < ys.length; j++)
+      for (let i = 0; i < xs.length; i++)
+        targetPts.push({ fx: xs[i], fy: ys[j] });
+
+    const samplesPerPt = 150; // ~2.5s @ 60fps (good accuracy, less lag)
+    const minConf = 0.45;
+
+    function buildCalibDots() {
+      calibTargets.innerHTML = "";
+      const frameRect = calibFrame.getBoundingClientRect();
+      targetPts.forEach(({ fx, fy }, i) => {
+        const d = document.createElement("div");
+        d.className = "t";
+        d.style.left = (fx * frameRect.width) + "px";
+        d.style.top = (fy * frameRect.height) + "px";
+        d.dataset.idx = i;
+        calibTargets.appendChild(d);
+      });
+    }
+    function setActiveDot(i) {
+      Array.from(calibTargets.children).forEach((el, idx) => el.classList.toggle("active", idx === i));
+    }
+
+    function fitQuadratic(obsXY, tgt) {
+      const M = Array.from({length:6},()=>Array(6).fill(0));
+      const bx = Array(6).fill(0), by = Array(6).fill(0);
+      for (let k=0;k<obsXY.length;k++){
+        const x = obsXY[k].x, y = obsXY[k].y;
+        const v = [x, y, x*x, x*y, y*y, 1];
+        for (let i=0;i<6;i++){
+          for (let j=0;j<6;j++) M[i][j] += v[i]*v[j];
+          bx[i] += v[i]*tgt[k].x;
+          by[i] += v[i]*tgt[k].y;
+        }
+      }
+      const solve = (A,b)=>{
+        A=A.map(r=>r.slice()); b=b.slice();
+        const n=A.length;
+        for(let i=0;i<n;i++){
+          let p=i; for(let r=i+1;r<n;r++) if(Math.abs(A[r][i])>Math.abs(A[p][i])) p=r;
+          if(p!==i){ [A[i],A[p]]=[A[p],A[i]]; [b[i],b[p]]=[b[p],b[i]]; }
+          const diag=A[i][i]||1e-8;
+          for(let j=i;j<n;j++) A[i][j]/=diag; b[i]/=diag;
+          for(let r=0;r<n;r++){
+            if(r===i) continue;
+            const f=A[r][i];
+            for(let j=i;j<n;j++) A[r][j]-=f*A[i][j];
+            b[r]-=f*b[i];
+          }
+        }
+        return b;
+      };
+      const px = solve(M, bx), py = solve(M, by);
+      return { a1:px[0], a2:px[1], a3:px[2], a4:px[3], a5:px[4], a6:px[5],
+               b1:py[0], b2:py[1], b3:py[2], b4:py[3], b5:py[4], b6:py[5] };
+    }
+
+    async function runCalibration() {
+      buildCalibDots();
+      const frameRect = calibFrame.getBoundingClientRect();
+      const frameToScreen = (fx, fy) => ({
+        x: (frameRect.left + frameRect.width * fx) / window.innerWidth,
+        y: (frameRect.top  + frameRect.height* fy) / window.innerHeight
+      });
+
+      calibProgress.textContent = "Calibrating… stare at the green dot (~2.5s each).";
+      eyeStartBtn.disabled = true;
+
+      const obs = [], tgt = [];
+      for (let i=0;i<targetPts.length;i++) {
+        setActiveDot(i);
+        const tScr = frameToScreen(targetPts[i].fx, targetPts[i].fy);
+        let k = 0, sumX=0, sumY=0, cnt=0;
+        await new Promise(r=>setTimeout(r, 250));
+        while (k < samplesPerPt) {
+          if (eyeRaw.ready && eyeRaw.conf >= minConf) {
+            sumX += eyeRaw.x; sumY += eyeRaw.y; cnt++; k++;
+          }
+          await new Promise(r=>requestAnimationFrame(r));
+        }
+        const avgX = sumX / Math.max(cnt,1);
+        const avgY = sumY / Math.max(cnt,1);
+        obs.push({x:avgX, y:avgY});
+        tgt.push({x:tScr.x, y:tScr.y});
+        calibProgress.textContent = `Calibrating… ${(i+1)}/${targetPts.length}`;
+      }
+
+      c = fitQuadratic(obs, tgt);
+      eyeCalibrated = true;
+      eyeOverlay.classList.remove("show");
+      calibProgress.textContent = "Ready.";
+      eyeStartBtn.disabled = false;
+      setStatus("Eye: calibrated");
+      lastPointerTs = 0; // show dot briefly
+    }
+
+    /* ---------------- Activate input sources ---------------- */
+    async function activateSource(src) {
+      if (src === "mouse") {
+        eyeOverlay.classList.remove("show");
+        eyeCalibrated = false;
+        setStatus("Mouse");
+        noteEl.textContent = "Move the mouse/touch to interact.";
+        await stopWebgazer();
+        await stopCamera();
+        return;
+      }
+      if (src === "hand") {
+        eyeOverlay.classList.remove("show");
+        eyeCalibrated = false;
+        await stopWebgazer();
+        await startCamera();
+        setStatus("Hand");
+        noteEl.textContent = "Raise your index fingertip to steer the bloom.";
+        return;
+      }
+      if (src === "body") {
+        eyeOverlay.classList.remove("show");
+        eyeCalibrated = false;
+        await stopWebgazer();
+        await startCamera();
+        setStatus("Body");
+        noteEl.textContent = "Move your head/arms to steer the bloom.";
+        return;
+      }
+      if (src === "eye") {
+        await startWebgazer();
+        await stopCamera();
+        eyeOverlay.classList.add("show");
+        setStatus("Eye");
+        noteEl.textContent = "Run the calibration, then look around to control.";
+        lastPointerTs = 0;
+        return;
+      }
+    }
+
+    /* ---------------- Boot ---------------- */
+    document.getElementById("eyeStartBtn").addEventListener("click", runCalibration);
+    initRenderer();
+    activateSource("mouse");
+  </script>
+</body>
+</html>

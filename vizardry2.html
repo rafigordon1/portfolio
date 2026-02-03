@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Void Index</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #050505;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --card-hover: rgba(255, 255, 255, 0.08);
+      --card-border-hover: rgba(255, 255, 255, 0.4);
+      --text: #888;
+      --text-hover: #fff;
+      --accent: #fff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      font-size: 0.85rem;
+      opacity: 0.6;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 1000px;
+      padding: 20px;
+    }
+
+    .void-link {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-decoration: none;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 2.5rem 1rem;
+      border-radius: 4px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .void-link span {
+      z-index: 2;
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .void-link::before {
+      content: attr(data-index);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 4rem;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.02);
+      z-index: 1;
+      transition: all 0.4s ease;
+    }
+
+    /* Hover States */
+    .void-link:hover {
+      background: var(--card-hover);
+      border-color: var(--card-border-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .void-link:hover span {
+      color: var(--text-hover);
+    }
+
+    .void-link:hover::before {
+      color: rgba(255, 255, 255, 0.05);
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    /* Responsive */
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 400px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>Experimental Collection - These are designed for desktop display.</header>
+
+  <div class="grid">
+    <a href="void1.html" class="void-link" data-index="01"><span>VOID 01</span></a>
+    <a href="void2.html" class="void-link" data-index="02"><span>VOID 02</span></a>
+    <a href="void3.html" class="void-link" data-index="03"><span>VOID 03</span></a>
+    <a href="void4.html" class="void-link" data-index="04"><span>VOID 04</span></a>
+    
+    <a href="void5.html" class="void-link" data-index="05"><span>VOID 05</span></a>
+    <a href="void6.html" class="void-link" data-index="06"><span>VOID 06</span></a>
+    <a href="void7.html" class="void-link" data-index="07"><span>VOID 07</span></a>
+    <a href="void8.html" class="void-link" data-index="08"><span>VOID 08</span></a>
+    
+    <a href="void9.html" class="void-link" data-index="09"><span>VOID 09</span></a>
+    <a href="void10.html" class="void-link" data-index="10"><span>VOID 10</span></a>
+    <a href="void11.html" class="void-link" data-index="11"><span>VOID 11</span></a>
+    <a href="void12.html" class="void-link" data-index="12"><span>VOID 12</span></a>
+    
+    <a href="void13.html" class="void-link" data-index="13"><span>VOID 13</span></a>
+    <a href="void14.html" class="void-link" data-index="14"><span>VOID 14</span></a>
+    <a href="void15.html" class="void-link" data-index="15"><span>VOID 15</span></a>
+    <a href="void16.html" class="void-link" data-index="16"><span>VOID 16</span></a>
+  </div>
+
+</body>
+</html>

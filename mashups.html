@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mashups</title>
+  <style>
+    /* --- FONTS --- */
+    @font-face {
+      font-family: 'Agrandir';
+      src: url('https://fonts.cdnfonts.com/s/73916/Agrandir-NarrowLight.woff');
+      font-weight: 300;
+    }
+    @font-face {
+      font-family: 'Agrandir';
+      src: url('https://fonts.cdnfonts.com/s/73916/Agrandir-ThinItalic.woff');
+      font-weight: 100;
+    }
+
+    /* --- GLOBAL VARIABLES --- */
+    :root {
+      /* Default (Dark / Night Mode) */
+      --bg-color: #050505;
+      --bg-gradient: none;
+      --text-main: #ffffff;
+      --text-dim: #888888;
+      --row-bg: rgba(20, 20, 20, 0.4);
+      --row-border: rgba(255, 255, 255, 0.1);
+      --row-shadow: none;
+      --accent: #1DB954;
+      --glass: blur(12px);
+      
+      /* Animation Settings */
+      --transition: 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Light Mode Override (Day-Time) */
+    [data-theme="light"] {
+      --bg-color: #f0ece2;
+      /* Background: Warmer Stone to Soft Lavender */
+      --bg-gradient: linear-gradient(135deg, #f0ece2 0%, #e6e6fa 100%);
+      
+      /* Text: Warmer dark grey/brown */
+      --text-main: #2a2620;
+      --text-dim: #6b655d;
+      
+      /* Elements: Distinct Beige */
+      --row-bg: #f8f5ed; 
+      /* Border: Warm Taupe */
+      --row-border: rgba(100, 90, 80, 0.15); 
+      /* Shadow: Warm subtle lift */
+      --row-shadow: 0 4px 25px rgba(60, 50, 40, 0.08); 
+    }
+
+    /* --- BASIC SETUP --- */
+    html, body {
+      margin: 0; padding: 0; width: 100%; min-height: 100vh;
+      background-color: var(--bg-color);
+      background-image: var(--bg-gradient);
+      background-attachment: fixed;
+      font-family: 'Agrandir', sans-serif;
+      color: var(--text-main);
+      overflow-x: hidden;
+      transition: background-color var(--transition), color var(--transition);
+    }
+
+    /* --- BACKGROUND AURORA --- */
+    #auroraHost {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+      transition: filter var(--transition), opacity var(--transition);
+    }
+
+    /* Light Mode: Multiply blend to stain the gradient */
+    [data-theme="light"] #auroraHost canvas {
+      filter: invert(1) contrast(0.9); 
+      mix-blend-mode: multiply;
+      opacity: 0.4;
+    }
+    
+    /* Cursor Dot (Hidden) */
+    .cursor-dot {
+      display: none; 
+      position: fixed; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-main);
+      box-shadow: 0 0 10px var(--text-main);
+      pointer-events: none; z-index: 9999; transform: translate(-50%,-50%);
+      opacity: 0;
+    }
+
+    /* --- NAVIGATION --- */
+    .nav-bar {
+      position: fixed; top: 40px; right: 40px; display: flex; gap: 30px; z-index: 100;
+    }
+    .nav-item {
+      color: var(--text-dim); text-decoration: none; font-size: 10px;
+      letter-spacing: 0.3em; font-weight: 100; cursor: pointer;
+      background: none; border: none; transition: color var(--transition);
+      text-transform: uppercase; font-family: 'Agrandir', sans-serif;
+    }
+    .nav-item:hover { color: var(--accent); }
+
+    /* --- SETTINGS PANEL --- */
+    .settings-container {
+      position: fixed; top: 40px; left: 40px; z-index: 200;
+    }
+    .settings-trigger {
+      color: var(--text-dim); background: none; border: none;
+      font-size: 10px; letter-spacing: 0.3em; font-weight: 100;
+      text-transform: uppercase; cursor: default;
+      font-family: 'Agrandir', sans-serif; padding-bottom: 20px;
+    }
+    .settings-trigger:hover { color: var(--accent); }
+
+    .settings-drop {
+      position: absolute; top: 30px; left: 0; width: 280px;
+      background: var(--row-bg);
+      border: 1px solid var(--row-border);
+      backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+      border-radius: 12px;
+      padding: 0 20px;
+      max-height: 0; opacity: 0; overflow: hidden;
+      transform: translateY(-10px);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      pointer-events: none;
+    }
+
+    .settings-container:hover .settings-drop {
+      max-height: 80vh; opacity: 1; transform: translateY(0); pointer-events: auto; padding: 20px;
+    }
+
+    .section-title {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em;
+      margin-bottom: 12px; margin-top: 8px; color: var(--text-dim); border-bottom: 1px solid var(--row-border); padding-bottom: 4px;
+    }
+    .control-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px; font-size: 11px;
+    }
+    .control-row label { letter-spacing: 0.05em; }
+    
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none; width: 90px; height: 2px;
+      background: var(--text-dim); outline: none; border-radius: 2px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--text-main); cursor: pointer; border: 1px solid var(--row-border);
+    }
+    .val-display { font-variant-numeric: tabular-nums; width: 25px; text-align: right; opacity: 0.7; }
+
+    select {
+      background: rgba(128,128,128,0.1); color: var(--text-main); border: 1px solid var(--row-border);
+      font-family: 'Agrandir', sans-serif; font-size: 10px; padding: 4px; border-radius: 4px;
+    }
+
+    /* --- MAIN CONTENT --- */
+    h1 {
+      font-weight: 100; font-size: clamp(3.5rem, 12vw, 8rem);
+      margin: 18vh 0 10vh 0; letter-spacing: -0.03em;
+      text-transform: uppercase; text-align: center;
+      position: relative; z-index: 10; pointer-events: none;
+      color: var(--text-main);
+    }
+
+    .container {
+      width: 90%; max-width: 900px; margin: 0 auto 20vh;
+      position: relative; z-index: 10;
+    }
+
+    .mashup-row {
+      background-color: var(--row-bg);
+      box-shadow: var(--row-shadow);
+      backdrop-filter: var(--glass); -webkit-backdrop-filter: var(--glass);
+      border: 1px solid var(--row-border);
+      border-radius: 12px; margin-bottom: 14px;
+      transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition), background-color var(--transition);
+      overflow: hidden;
+    }
+
+    .mashup-row:hover, .mashup-row.playing, .mashup-row.active {
+      transform: translateY(-4px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+      border-color: var(--accent);
+    }
+
+    .row-header {
+      padding: 30px; display: flex; align-items: center; cursor: default; gap: 25px;
+    }
+
+    .play-btn {
+      background: none; border: 1px solid var(--row-border);
+      width: 48px; height: 48px; border-radius: 50%;
+      color: var(--text-main); font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.4s ease;
+    }
+    .play-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .mashup-row.playing .play-btn {
+      color: var(--accent); border-color: var(--accent);
+      background: rgba(29, 185, 84, 0.1);
+    }
+
+    .title-area h2 { margin: 0; font-size: 1.3rem; font-weight: 300; letter-spacing: 0.02em; }
+
+    /* Content Expansion */
+    .row-content {
+      max-height: 0; opacity: 0;
+      transition: max-height 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease, padding 0.7s ease;
+      padding: 0 30px; display: flex; flex-wrap: wrap; gap: 15px;
+    }
+
+    .mashup-row.active .row-content {
+      max-height: 600px; opacity: 1; padding-bottom: 30px;
+    }
+
+    iframe {
+      border-radius: 6px; border: none; height: 80px;
+      flex: 1 1 260px; max-width: 100%;
+      background: rgba(128,128,128,0.1);
+    }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+      .nav-bar { top: 20px; right: 20px; left: 20px; justify-content: space-between; width: auto; }
+      .settings-container { top: auto; bottom: 20px; left: 20px; }
+      .settings-drop { bottom: 40px; top: auto; width: 80vw; }
+      h1 { font-size: 3.5rem; margin: 12vh 0 6vh 0; }
+      .container { width: 95%; }
+      .row-header { padding: 20px; gap: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="auroraHost"></div>
+  <div id="cursorDot" class="cursor-dot"></div>
+
+  <div class="settings-container">
+    <button class="settings-trigger">VISUALS</button>
+    <div class="settings-drop">
+      
+      <div class="section-title">Atmosphere</div>
+      <div class="control-row">
+        <label>HUE</label>
+        <input id="hueShift" type="range" min="0" max="360"/>
+        <div class="val-display" id="hueShiftVal"></div>
+      </div>
+      <div class="control-row">
+        <label>SPEED</label>
+        <input id="speed" type="range" min="0" max="5" step="0.1"/>
+        <div class="val-display" id="speedVal"></div>
+      </div>
+      <div class="control-row">
+        <label>DENSITY</label>
+        <input id="density" type="range" min="0.2" max="3" step="0.1"/>
+        <div class="val-display" id="densityVal"></div>
+      </div>
+
+      <div class="section-title">Input</div>
+      <div class="control-row">
+        <label>MODE</label>
+        <select id="inputSource">
+          <option value="mouse">Mouse</option>
+          <option value="hand">Hand</option>
+          <option value="body">Body</option>
+        </select>
+      </div>
+
+      <div class="section-title">Geometry</div>
+      <div class="control-row">
+        <label>TWINKLE</label>
+        <input id="twinkle" type="range" min="0" max="1" step="0.01"/>
+        <div class="val-display" id="twinkleVal"></div>
+      </div>
+      <div class="control-row">
+        <label>FOCAL X</label>
+        <input id="focalX" type="range" min="0" max="1" step="0.01"/>
+        <div class="val-display" id="focalXVal"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-bar">
+    <button class="nav-item" onclick="toggleTheme()" id="theme-toggle">DAY-TIME</button>
+    <a href="https://soundcloud.com/user-60740105" target="_blank" class="nav-item">SOUNDCLOUD ↗</a>
+  </div>
+
+  <h1>Mashups</h1>
+
+  <div class="container" id="mashup-list">
+    
+    <div class="mashup-row" id="row-1">
+      <div class="row-header">
+        <button class="play-btn" onclick="playSnippet(1)">▶</button>
+        <audio id="audio1" src="ambient1.wav" onended="autoNext(1)"></audio>
+        <div class="title-area"><h2>Ambient 1</h2></div>
+      </div>
+      <div class="row-content">
+        <iframe src="https://open.spotify.com/embed/track/3FJ4suZo6FuW0xmARmE0R4?utm_source=generator"></iframe>
+        <iframe src="https://open.spotify.com/embed/track/5OSSD6jXQBMnvjMuGyp0UC?utm_source=generator"></iframe>
+        <iframe src="https://open.spotify.com/embed/track/46ka1NZ3k0leOZTb1oUtyn?utm_source=generator"></iframe>
+      </div>
+    </div>
+
+    <div class="mashup-row" id="row-2">
+      <div class="row-header">
+        <button class="play-btn" onclick="playSnippet(2)">▶</button>
+        <audio id="audio2" src="ambient2.wav" onended="autoNext(2)"></audio>
+        <div class="title-area"><h2>Ambient 2</h2></div>
+      </div>
+      <div class="row-content">
+        <iframe src="https://open.spotify.com/embed/track/08DaDfiO19PnOWz8DYAe1U?utm_source=generator"></iframe>
+        <iframe src="https://open.spotify.com/embed/track/1i8MaQec4fQXj1enX8ZWF4?utm_source=generator"></iframe>
+        <iframe src="https://open.spotify.com/embed/track/0IvFSkxHib9iQftbMonytY?utm_source=generator"></iframe>
+      </div>
+    </div>
+
+    <div class="mashup-row" id="row-3">
+      <div class="row-header">
+        <button class="play-btn" onclick="playSnippet(3)">▶</button>
+        <audio id="audio3" src="DAMNMARIO.wav" onended="autoNext(3)"></audio>
+        <div class="title-area"><h2>Damn Mario</h2></div>
+      </div>
+      <div class="row-content">
+        <iframe src="https://open.spotify.com/embed/track/78W81pRYN5j3SV1819Dz0F?utm_source=generator"></iframe>
+        <iframe src="https://open.spotify.com/embed/track/4vB5WszFVjXQ8lffE8rVVm?utm_source=generator"></iframe>
+      </div>
+    </div>
+
+    <div class="mashup-row" id="row-4">
+      <div class="row-header">
+        <button class="play-btn" onclick="playSnippet(4)">▶</button>
+        <audio id="audio4" src="techrap.wav" onended="autoNext(4)"></audio>
+        <div class="title-area"><h2>Tech Rap</h2></div>
+      </div>
+      <div class="row-content">
+        <iframe src="https://open.spotify.com/embed/track/6cLZ33zZQAnyGAVvUFDFx4?utm_source=generator"></iframe>
+        <iframe src="https://open.spotify.com/embed/track/3nAFxUytZXe4FjI54aXDn4?utm_source=generator"></iframe>
+      </div>
+    </div>
+
+    <div class="mashup-row" id="row-5">
+      <div class="row-header">
+        <button class="play-btn" onclick="playSnippet(5)">▶</button>
+        <audio id="audio5" src="Bang Bang.wav" onended="autoNext(5)"></audio>
+        <div class="title-area"><h2>Bang Bang</h2></div>
+      </div>
+      <div class="row-content">
+        <iframe src="https://open.spotify.com/embed/track/0puf9yIluy9W0vpMEUoAnN?utm_source=generator"></iframe>
+        <iframe src="https://open.spotify.com/embed/track/6W2K0DK8OOWB4UfRAnB2KH?utm_source=generator"></iframe>
+      </div>
+    </div>
+
+    <div class="mashup-row" id="row-6">
+      <div class="row-header">
+        <button class="play-btn" onclick="playSnippet(6)">▶</button>
+        <audio id="audio6" src="SatDrip.mp3.wav" onended="autoNext(6)"></audio>
+        <div class="title-area"><h2>Saturday Drip</h2></div>
+      </div>
+      <div class="row-content">
+        <iframe src="https://open.spotify.com/embed/track/16ZyoO0MJLiulmsVQQUo47?utm_source=generator"></iframe>
+        <iframe src="https://open.spotify.com/embed/track/2ohOA4P55RsoU1bOanNGyB?utm_source=generator"></iframe>
+      </div>
+    </div>
+
+  </div>
+
+  <video id="cam" playsinline autoplay muted style="display:none;"></video>
+
+  <script type="module">
+    import { Renderer, Program, Mesh, Color, Triangle } from "https://cdn.skypack.dev/ogl";
+
+    /* --- PARAMS & STATE --- */
+    const params = {
+      focal: [0.5, 0.5],
+      density: 3.0,
+      hueShift: 180,
+      speed: 0.0,
+      twinkle: 0.35,
+      smoothing: 0.15
+    };
+
+    const host = document.getElementById("auroraHost");
+    
+    /* --- SHADER --- */
+    const vertexShader = `attribute vec2 uv; attribute vec2 position; varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,0.,1.); }`;
+    const fragmentShader = `
+      precision highp float; varying vec2 vUv;
+      uniform float uTime; uniform vec3 uResolution; uniform vec2 uFocal;
+      uniform float uDensity; uniform float uHueShift; uniform float uSpeed;
+      uniform vec2 uMouse; uniform float uTwinkle; uniform float uMouseActive;
+      float hash21(vec2 p){ p=fract(p*vec2(234.34,489.23)); p+=dot(p,p+34.23); return fract(p.x*p.y); }
+      float vnoise(vec2 p){ vec2 i=floor(p),f=fract(p); float a=hash21(i),b=hash21(i+vec2(1.,0.)),c=hash21(i+vec2(0.,1.)),d=hash21(i+vec2(1.,1.)); vec2 u=f*f*(3.-2.*f); return mix(a,b,u.x)+(c-a)*u.y*(1.-u.x)+(d-b)*u.x*u.y; }
+      vec2 curl(vec2 p){ float e=0.005; float n1=vnoise(p+vec2(0.,e))-vnoise(p-vec2(0.,e)); float n2=vnoise(p+vec2(e,0.))-vnoise(p-vec2(e,0.)); return vec2(n1,-n2); }
+      vec3 hsv2rgb(vec3 c){ vec4 K=vec4(1.,2./3.,1./3.,3.); vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www); return c.z*mix(K.xxx,clamp(p-K.xxx,0.,1.),c.y); }
+      float ribbon(vec2 p,float w){ return smoothstep(w,0.,abs(p.y)+0.02*abs(p.x)); }
+      void main(){
+        vec2 focalPx = uFocal*uResolution.xy;
+        vec2 uv = (vUv*uResolution.xy - focalPx)/max(uResolution.y,1.);
+        vec2 mUV = (uMouse*uResolution.xy - focalPx)/max(uResolution.y,1.);
+        vec2 dir = normalize(uv - mUV + 1e-5);
+        uv += dir * (2.0 / (length(uv - mUV) + 0.1)) * 0.05 * uMouseActive;
+        float t = uTime*(0.5+uSpeed*0.5);
+        vec2 q = uv*(3.0*uDensity);
+        for(int i=0;i<4;i++) q += 0.12*curl(q+vec2(0.,t*0.2));
+        vec3 col = vec3(0.);
+        for(float i=0.;i<5.;i++){
+          float d = i/5.;
+          vec2 p = uv*(mix(1.8,0.55,d)*uDensity) + 0.25*i*vec2(sin(t*0.3+i),cos(t*0.27-i));
+          p += curl(p+vec2(t*0.05,-t*0.04))*0.25;
+          float band = ribbon(p, mix(0.11,0.02,d));
+          float spk = vnoise(p*4.5+t)*mix(0.35,1.0,uTwinkle);
+          col += hsv2rgb(vec3(fract((uHueShift/360.)+d*0.18), 0.4+0.4*d, clamp(0.25+0.9*band+0.5*spk,0.,1.))) * (band*mix(0.6,1.,smoothstep(1.2,0.,length(p))*0.55)+0.05*spk);
+        }
+        col *= smoothstep(1.7,0.15,length(uv));
+        gl_FragColor = vec4(col,1.);
+      }
+    `;
+
+    let renderer, gl, program, mesh;
+    const smoothMouse = { x: 0.5, y: 0.5 };
+    const targetMouse = { x: 0.5, y: 0.5 };
+    const smoothActive = { v: 0.0 };
+    const targetActive = { v: 0.0 };
+
+    function initRenderer() {
+      renderer = new Renderer({ alpha: false });
+      gl = renderer.gl;
+      host.appendChild(gl.canvas);
+      function resize() {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        if(program) program.uniforms.uResolution.value = new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width/Math.max(gl.canvas.height,1));
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      program = new Program(gl, {
+        vertex: vertexShader, fragment: fragmentShader,
+        uniforms: {
+          uTime: { value: 0 },
+          uResolution: { value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width/Math.max(gl.canvas.height,1)) },
+          uFocal: { value: new Float32Array(params.focal) },
+          uDensity: { value: params.density },
+          uHueShift: { value: params.hueShift },
+          uSpeed: { value: params.speed },
+          uMouse: { value: new Float32Array([0.5,0.5]) },
+          uTwinkle: { value: params.twinkle },
+          uMouseActive: { value: 0.0 }
+        }
+      });
+      mesh = new Mesh(gl, { geometry: new Triangle(gl), program });
+      requestAnimationFrame(loop);
+    }
+
+    const onMove = (x, y) => {
+      targetMouse.x = x / window.innerWidth;
+      targetMouse.y = y / window.innerHeight;
+      targetActive.v = 1.0;
+    };
+    window.addEventListener("mousemove", e => onMove(e.clientX, e.clientY));
+    window.addEventListener("touchmove", e => onMove(e.touches[0].clientX, e.touches[0].clientY), {passive:true});
+    document.addEventListener("mouseleave", () => { targetActive.v = 0.0; });
+
+    function loop(t) {
+      requestAnimationFrame(loop);
+      const k = params.smoothing;
+      smoothMouse.x += (targetMouse.x - smoothMouse.x) * k;
+      smoothMouse.y += (targetMouse.y - smoothMouse.y) * k;
+      smoothActive.v += (targetActive.v - smoothActive.v) * k;
+
+      program.uniforms.uTime.value = t * 0.001;
+      program.uniforms.uMouse.value[0] = smoothMouse.x;
+      program.uniforms.uMouse.value[1] = smoothMouse.y;
+      program.uniforms.uMouseActive.value = smoothActive.v;
+      
+      program.uniforms.uHueShift.value = params.hueShift;
+      program.uniforms.uSpeed.value = params.speed;
+      program.uniforms.uDensity.value = params.density;
+      program.uniforms.uTwinkle.value = params.twinkle;
+      program.uniforms.uFocal.value[0] = params.focal[0];
+
+      renderer.render({ scene: mesh });
+    }
+
+    initRenderer();
+
+    // UI Bindings
+    function bind(id, key) {
+      const el = document.getElementById(id), v = document.getElementById(id+"Val");
+      if(v) v.textContent = params[key];
+      el.value = params[key];
+      el.addEventListener("input", () => {
+        params[key] = +el.value;
+        if(v) v.textContent = params[key];
+      });
+    }
+    bind("hueShift", "hueShift");
+    bind("speed", "speed");
+    bind("density", "density");
+    bind("twinkle", "twinkle");
+    document.getElementById("focalX").addEventListener("input", e=>{ params.focal[0]=+e.target.value; document.getElementById("focalXVal").textContent=(+e.target.value).toFixed(2); });
+  </script>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const btn = document.getElementById('theme-toggle');
+      if (html.getAttribute('data-theme') === 'light') {
+        html.removeAttribute('data-theme');
+        btn.innerText = 'DAY-TIME';
+      } else {
+        html.setAttribute('data-theme', 'light');
+        btn.innerText = 'NIGHT-TIME';
+      }
+    }
+
+    document.querySelectorAll('.mashup-row').forEach(row => {
+      row.addEventListener('mouseenter', () => row.classList.add('active'));
+      row.addEventListener('mouseleave', () => row.classList.remove('active'));
+    });
+
+    function playSnippet(index) {
+      const currentAudio = document.getElementById(`audio${index}`);
+      const currentRow = document.getElementById(`row-${index}`);
+      const currentBtn = currentRow.querySelector('.play-btn');
+      
+      document.querySelectorAll('audio').forEach(a => {
+        if (a !== currentAudio) {
+          a.pause(); a.currentTime = 0;
+          a.closest('.mashup-row').classList.remove('playing');
+          a.previousElementSibling.innerText = '▶';
+        }
+      });
+
+      if (currentAudio.paused) {
+        currentAudio.play();
+        currentRow.classList.add('playing');
+        currentBtn.innerText = '⏸';
+      } else {
+        currentAudio.pause();
+        currentRow.classList.remove('playing');
+        currentBtn.innerText = '▶';
+      }
+    }
+
+    function autoNext(index) {
+      const nextIndex = index + 1;
+      if (document.getElementById(`row-${nextIndex}`)) {
+        setTimeout(() => playSnippet(nextIndex), 500);
+      }
+    }
+  </script>
+</body>
+</html>

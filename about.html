@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>About — Rafi Gordon</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+</head>
+<body>
+  <div id="p5-canvas-container"></div>
+  <div class="mobile-menu">
+    <button class="menu-close">✕</button>
+    <div class="mobile-theme-toggle-inside">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+    </div>
+    <div class="mobile-settings-area">
+        <div class="mobile-settings-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"/><line x1="6" y1="8" x2="18" y2="8" stroke-linecap="round"/><circle cx="14" cy="8" r="2" fill="currentColor" /><line x1="6" y1="16" x2="18" y2="16" stroke-linecap="round"/><circle cx="10" cy="16" r="2" fill="currentColor" /></svg></div>
+        <div class="mobile-params">
+            <div class="setting-row"><label>Speed</label><input id="p-speed" type="range" min="0.1" max="3" step="0.1" value="0.2"></div>
+            <div class="setting-row"><label>Density</label><input id="p-density" type="range" min="0.5" max="2" step="0.1" value="0.2"></div>
+            <div class="setting-row"><label>Glow <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-left:4px; opacity:0.7;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></label><input id="p-glow" type="range" min="0.2" max="1.5" step="0.1" value="0.5"></div>
+        </div>
+    </div>
+    <div class="mobile-footer-area">
+        <div class="site-timer-display">0:00</div>
+        <div class="mobile-sound-toggle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        </div>
+    </div>
+    <a href="index.html">Home</a>
+    
+    <div class="mobile-dropdown-container">
+        <div class="mobile-dropdown-header">
+            <a href="projects.html">Projects</a>
+            <button class="mobile-dropdown-toggle">
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+        </div>
+        <div class="mobile-dropdown-content">
+            <a href="vizardry.html">Vizardry</a>
+            <a href="swipeout.html">SwipeOut</a>
+            <a href="thegreatescape.html">Great Escape</a>
+        </div>
+    </div>
+
+    <a href="play.html">Play</a>
+    <a href="about.html" class="active-link">About</a>
+  </div>
+
+  <header>
+    <div class="current-page-label">About</div>
+    <div class="mobile-header-left mobile-home-link" onclick="window.location.href='index.html'">
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+    </div>
+    
+    <div class="desktop-home-icon" onclick="window.location.href='index.html'" style="position:absolute; left:6vw;">
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+    </div>
+
+    <nav><a href="projects.html">Projects</a><a href="play.html">Play</a></nav>
+    <div class="header-right"><div class="settings-wrapper"><div class="settings-toggle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"/><line x1="6" y1="8" x2="18" y2="8" stroke-linecap="round"/><circle cx="14" cy="8" r="2" fill="currentColor" /><line x1="6" y1="16" x2="18" y2="16" stroke-linecap="round"/><circle cx="10" cy="16" r="2" fill="currentColor" /></svg></div><div class="settings-panel"><div class="setting-row"><label>Speed</label><input id="p-speed" type="range" min="0.1" max="3" step="0.1" value="0.2"></div><div class="setting-row"><label>Density</label><input id="p-density" type="range" min="0.5" max="2" step="0.1" value="0.2"></div><div class="setting-row"><label>Glow <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-left:4px; opacity:0.7;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></label><input id="p-glow" type="range" min="0.2" max="1.5" step="0.1" value="0.5"></div></div></div><div class="theme-toggle-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></div></div>
+    <button class="mobile-hamburger"><span></span><span></span><span></span></button>
+  </header>
+
+  <main>
+    <div class="about-container">
+      
+      <div class="about-section bio-split-layout" id="pinned-bio-section">
+         <div class="bio-text-area backdrop-blur">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem; font-weight: 400; text-transform: none; opacity: 1;">Hey!</h2>
+            <p class="readable-text" style="margin-bottom: 2rem;">
+               I’m a Digital Designer specialising in user experience. I combine research and rapid prototyping to create immersive tools that are as intuitive as they are innovative. Currently available for new opportunities. My work is driven by a curiosity for how people interact with technology.
+            </p>
+            
+            <div class="bio-contact-item">
+                <div class="desktop-contact-reveal">
+                    <div class="contact-trigger">
+                        <svg class="mail-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                        <span class="contact-label">Get in Touch</span>
+                    </div>
+                    <div class="contact-hidden-email" id="bio-copy-trigger">
+                        <span class="email-text">rafigordon04@gmail.com</span>
+                        <svg class="copy-small" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </div>
+                </div>
+                <button class="mobile-contact-btn" id="mobile-bio-copy">Get in Touch</button>
+            </div>
+         </div>
+
+         <div class="bio-gif-wrapper">
+             <img src="placeholder.gif" class="bio-gif" alt="Portrait GIF">
+         </div>
+      </div>
+
+      <div class="about-section ethos-section">
+         <div class="about-visual abstract-graphic" id="ethos-graphic-container">
+            <div id="ethos-canvas"></div>
+            <div class="mobile-tap-label">Tap me</div>
+         </div>
+         <div class="about-text-block about-text">
+            <h2>Ethos</h2>
+            <p class="readable-text">Great design is about creating an emotional connection through subtle interactions and meaningful feedback loops. I believe in a minimalistic aesthetic that integrates the powerful interactions with simplicity and ease of use.</p>
+         </div>
+      </div>
+
+      <div class="about-section experience-section">
+         <div class="about-visual about-img"><img src="about.gif" alt="Work"></div>
+         <div class="about-text-block about-text">
+            <h2>Experience</h2>
+            <p class="readable-text">With a background in interactive media and immersive experiences, I bridge the gap between technical feasibility and creative vision. I've worked with experience oriented startups and am always on the lookout for problem/solution opportunities. I'm currently in my final year of a User Experience degree at Melbourne University.</p>
+         </div>
+      </div>
+
+      <div class="slideshow-wrapper">
+          <div class="about-text" style="padding-left: var(--spacing-outer);"><h2>Inspiration</h2></div>
+          <div class="slideshow-container">
+             <div class="slide-item"><img src="dp.jpg" alt="Inspo"></div>
+             <div class="slide-item"><img src="pleasurableUX.jpg" alt="Inspo"></div>
+             <div class="slide-item"><img src="customize.jpg" alt="Inspo"></div>
+             <div class="slide-item"><img src="thoughtmap.jpg" alt="Inspo"></div>
+             <div class="slide-item"><img src="steven.jpg" alt="Inspo"></div>
+             <div class="slide-item"><img src="butterchurnz.jpg" alt="Inspo"></div>
+          </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+     <div class="desktop-footer-content">
+        <span class="site-timer-display">0:00</span>
+        <div class="sound-toggle">
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        </div>
+     </div>
+  </footer>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Haunted Voices</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+
+<style>
+  /* --- PULSE DESIGN SYSTEM --- */
+  @font-face {
+    font-family: 'Agrandir';
+    src: local('Agrandir'), local('Agrandir-Regular'), url('https://fonts.cdnfonts.com/s/72346/Agrandir-Regular.woff') format('woff');
+    font-weight: 400; font-style: normal; display: swap;
+  }
+  @font-face {
+    font-family: 'Agrandir-Wide';
+    src: local('Agrandir Wide'), local('Agrandir-WideBlack'), url('https://fonts.cdnfonts.com/s/72346/Agrandir-WideBlack.woff') format('woff');
+    font-weight: 900; font-style: normal; display: swap;
+  }
+
+  :root {
+    --bg-color: #050505; 
+    --panel-bg: rgba(5, 5, 5, 0.75);
+    --fg: #e0e0e0;
+    --fg-dim: #999;
+    --accent: #ff3333;
+    --accent-dim: rgba(255, 51, 51, 0.15);
+    --border: rgba(80, 80, 80, 0.5);
+    --radius: 4px;
+    --font-main: 'Agrandir', system-ui, sans-serif;
+    --font-mono: 'Courier New', monospace;
+    --shadow-color: rgba(0,0,0,0.8);
+    --input-track: rgba(255,255,255,0.2);
+    --btn-bg: rgba(10,10,10,0.8);
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg-color);
+    color: var(--fg);
+    font-family: var(--font-main);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  /* P5 Canvas Container */
+  #canvas-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 1.0; 
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 680px;
+    padding: 40px 20px;
+    text-align: center;
+    position: relative;
+    z-index: 10;
+  }
+
+  h1 {
+    font-family: 'Agrandir-Wide', var(--font-main);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 2.2rem;
+    margin: 0 0 16px;
+    color: var(--accent);
+    text-shadow: 0 0 30px var(--accent-dim);
+  }
+
+  p {
+    color: var(--fg-dim);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 480px;
+    margin: 0 auto 32px;
+    background: var(--panel-bg); 
+    backdrop-filter: blur(4px);
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  
+  em {
+    color: var(--fg);
+    font-style: normal;
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 32px;
+  }
+
+  .panel {
+    background: var(--panel-bg);
+    backdrop-filter: blur(20px); 
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    position: relative;
+    transition: border-color 0.3s ease;
+    text-align: left;
+    box-shadow: 0 10px 50px var(--shadow-color);
+  }
+
+  button {
+    -webkit-appearance: none; appearance: none;
+    background: var(--btn-bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 24px;
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(4px);
+  }
+
+  button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 25px var(--accent-dim);
+    transform: translateY(-1px);
+  }
+  
+  button:active:not(:disabled) { transform: scale(0.98); }
+  
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: var(--border);
+  }
+
+  #scareBtn {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  #scareBtn:hover:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 40px var(--accent-dim);
+  }
+
+  .control-group {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .control-group:last-of-type { border-bottom: none; padding-bottom: 0; }
+  
+  .control-title {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: block;
+    opacity: 0.8;
+  }
+
+  .fx-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 24px;
+  }
+  @media(max-width: 500px) { .fx-grid { grid-template-columns: 1fr; } }
+
+  label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-dim);
+    margin-bottom: 8px;
+  }
+
+  label span {
+    float: right;
+    font-family: var(--font-mono);
+    color: var(--accent);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%;
+    background: transparent;
+    margin: 0;
+    display: block;
+  }
+  
+  input[type=range]:focus { outline: none; }
+  
+  input[type=range]::-webkit-slider-runnable-track {
+    width: 100%; height: 2px;
+    cursor: pointer; background: var(--input-track);
+    transition: background 0.2s;
+  }
+  
+  input[type=range]::-webkit-slider-thumb {
+    height: 14px; width: 14px;
+    border-radius: 50%;
+    background: var(--bg-color); /* Thumb matches bg */
+    border: 2px solid var(--accent);
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -6px;
+    box-shadow: 0 0 10px var(--accent-dim);
+    transition: transform 0.1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); background: var(--accent); }
+
+  .checkbox-group {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  .checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    cursor: pointer;
+    text-transform: none;
+    font-size: 0.85rem;
+    color: var(--fg);
+  }
+  
+  input[type=checkbox] {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px;
+    border: 1px solid var(--fg-dim);
+    border-radius: 2px;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+  }
+  
+  input[type=checkbox]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-dim);
+  }
+
+  .kv {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border); 
+    border: 1px solid var(--border);
+    margin-top: 32px;
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .kv span {
+    background: var(--panel-bg);
+    padding: 16px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-dim);
+  }
+
+  .kv b {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--fg);
+    font-weight: 400;
+  }
+
+  .ok { color: var(--accent) !important; text-shadow: 0 0 12px var(--accent-dim); }
+  .warn { color: #d4a000 !important; }
+  .bad { color: #ff0000 !important; }
+
+  @keyframes breathe {
+    0% { border-color: var(--border); box-shadow: 0 0 0 transparent; }
+    50% { border-color: var(--accent); box-shadow: 0 0 30px var(--accent-dim); }
+    100% { border-color: var(--border); box-shadow: 0 0 0 transparent; }
+  }
+
+  .listening .panel {
+    animation: breathe 4s infinite ease-in-out;
+  }
+  
+  .tip {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 24px;
+    font-family: var(--font-mono);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div class="wrap" id="appWrap">
+  <h1>Haunted Voices</h1>
+  <p>Speaks back <em>your past sentences</em> at random times. <br>Control the atmosphere below.</p>
+
+  <div class="row">
+    <button id="startBtn">Start</button>
+    <button id="stopBtn" disabled>Terminate</button>
+    <button id="scareBtn" disabled>TRIGGER ENTITY</button>
+  </div>
+
+  <div class="panel">
+    
+    <div class="control-group">
+      <span class="control-title">Core Behavior</span>
+      <label for="intensity">
+        Malevolence
+        <span id="intensityVal">0.60</span>
+      </label>
+      <input id="intensity" type="range" min="0" max="1" step="0.01" value="0.60" />
+    </div>
+
+    <div class="control-group">
+      <span class="control-title">Sound Shaping</span>
+      <div class="fx-grid">
+        <div>
+          <label>Reverb <span>Deep</span></label>
+          <input id="fxReverb" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+        <div>
+          <label>Echo <span>Repeat</span></label>
+          <input id="fxEcho" type="range" min="0" max="1" step="0.01" value="0.4" />
+        </div>
+        <div>
+          <label>Distortion <span>Crunch</span></label>
+          <input id="fxDistort" type="range" min="0" max="1000" step="10" value="120" />
+        </div>
+        <div>
+          <label>Tone <span>Dark/Bright</span></label>
+          <input id="fxTone" type="range" min="200" max="8000" step="100" value="6000" />
+        </div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-title">Parameters</span>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="allowReverse" checked /> Reversals</label>
+        <label><input type="checkbox" id="allowPitch" checked /> Pitch Shift</label>
+      </div>
+    </div>
+
+    <div class="kv">
+      <span>Status <b id="status" class="warn">Idle</b></span>
+      <span>Captured <b id="count">0</b></span>
+    </div>
+
+    <p class="tip">
+      System Ready. Waiting for audio input...
+    </p>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// 1. P5.js BACKGROUND (Movement & Theme)
+// ==========================================
+const s = (p) => {
+  let shaderProgram;
+  
+  const vert = `
+    attribute vec3 aPosition;
+    attribute vec2 aTexCoord;
+    void main() {
+      vec4 positionVec4 = vec4(aPosition, 1.0);
+      positionVec4.xy = positionVec4.xy * 2.0 - 1.0; 
+      gl_Position = positionVec4;
+    }
+  `;
+
+  // Fragment Shader: Drifting + Boiling
+  const frag = `
+    precision mediump float;
+    uniform vec2 u_resolution;
+    uniform float u_time;
+
+    // Noise Functions
+    float rand(vec2 n) { 
+      return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+    }
+    float noise(vec2 p){
+      vec2 ip = floor(p);
+      vec2 u = fract(p);
+      u = u*u*(3.0-2.0*u);
+      float res = mix(
+        mix(rand(ip), rand(ip+vec2(1.0,0.0)), u.x),
+        mix(rand(ip+vec2(0.0,1.0)), rand(ip+vec2(1.0,1.0)), u.x), u.y);
+      return res*res;
+    }
+    
+    // Domain Warping FBM
+    float fbm(vec2 x) {
+      float v = 0.0;
+      float a = 0.5;
+      vec2 shift = vec2(100.0);
+      mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.50));
+      for (int i = 0; i < 4; ++i) { 
+        v += a * noise(x);
+        x = rot * x * 2.0 + shift;
+        a *= 0.5;
+      }
+      return v;
+    }
+
+    // 2D Rotation matrix
+    mat2 rotate2d(float _angle){
+      return mat2(cos(_angle),-sin(_angle), sin(_angle),cos(_angle));
+    }
+
+    void main() {
+      vec2 st = gl_FragCoord.xy/u_resolution.xy;
+      st.x *= u_resolution.x/u_resolution.y;
+      
+      float t = u_time * 0.15; // Speed of evolution
+
+      // --- MOVEMENT: Wide Wandering Path ---
+      // We use independent sine waves for X and Y to create a Lissajous-like path
+      // that visits all corners of the screen.
+      // Multipliers (0.9, 0.7) allow it to traverse nearly the full width/height.
+      vec2 drift = vec2(
+        sin(t * 0.5) * 0.9, 
+        cos(t * 0.3) * 0.7
+      );
+      
+      // Center the coordinate system on the drift point
+      vec2 pos = st + drift; 
+
+      // Apply slow rotation to the entire field for churning effect
+      pos -= vec2(0.5); // move pivot to center
+      pos = rotate2d( sin(t*0.2)*0.5 ) * pos;
+      pos += vec2(0.5); // move back
+
+      // --- BOILING: Internal turbulence ---
+      vec2 q = vec2(0.);
+      q.x = fbm( pos + 0.1*t );
+      q.y = fbm( pos + vec2(1.0) );
+
+      vec2 r = vec2(0.);
+      r.x = fbm( pos + 1.0*q + vec2(1.7,9.2) + 0.15*t );
+      r.y = fbm( pos + 1.0*q + vec2(8.3,2.8) + 0.126*t );
+
+      float f = fbm(pos + r * 2.0);
+
+      // --- COLOR PALETTE (Dark Hellscape) ---
+      vec3 dark_base = vec3(0.05, 0.02, 0.02);
+      vec3 dark_mid = vec3(0.4, 0.05, 0.05);
+      vec3 dark_high = vec3(1.0, 0.2, 0.2);
+
+      // Interpolate colors based on noise 'f'
+      float val = smoothstep(0.2, 0.9, f);
+      
+      vec3 finalCol = mix(dark_base, dark_mid, val);
+      finalCol = mix(finalCol, dark_high, pow(val, 3.5));
+
+      // Vignette
+      float vignette = 1.0 - smoothstep(0.4, 1.5, length(gl_FragCoord.xy / u_resolution.xy - 0.5) * 1.5);
+      finalCol *= vignette;
+
+      // Film Grain
+      float grain = rand(st * u_time) * 0.06;
+      finalCol += grain;
+
+      gl_FragColor = vec4(finalCol, 1.0);
+    }
+  `;
+
+  p.setup = () => {
+    let canvas = p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
+    canvas.parent('canvas-container');
+    shaderProgram = p.createShader(vert, frag);
+  };
+
+  p.draw = () => {
+    p.shader(shaderProgram);
+    shaderProgram.setUniform('u_resolution', [p.width, p.height]);
+    shaderProgram.setUniform('u_time', p.millis() / 1000.0);
+    p.rect(0,0,p.width, p.height);
+  };
+
+  p.windowResized = () => {
+    p.resizeCanvas(p.windowWidth, p.windowHeight);
+  };
+};
+new p5(s);
+
+
+// ==========================================
+// 2. AUDIO LOGIC & UI (Haunted Mimic)
+// ==========================================
+(() => {
+  // ===== UI =====
+  const ui = {
+    wrap: document.getElementById('appWrap'),
+    start: document.getElementById('startBtn'),
+    stop: document.getElementById('stopBtn'),
+    scare: document.getElementById('scareBtn'),
+    intensity: document.getElementById('intensity'),
+    intensityVal: document.getElementById('intensityVal'),
+    // FX
+    fxReverb: document.getElementById('fxReverb'),
+    fxEcho: document.getElementById('fxEcho'),
+    fxDistort: document.getElementById('fxDistort'),
+    fxTone: document.getElementById('fxTone'),
+    // Status
+    status: document.getElementById('status'),
+    count: document.getElementById('count'),
+    // Toggles
+    allowReverse: document.getElementById('allowReverse'),
+    allowPitch: document.getElementById('allowPitch')
+  };
+  
+  const setStatus = (text, klass='ok') => { 
+    ui.status.textContent = text; 
+    ui.status.className = klass; 
+    if(text.includes('listening')) ui.wrap.classList.add('listening');
+    else ui.wrap.classList.remove('listening');
+  };
+  
+  const setCount = n => ui.count.textContent = n;
+
+  // ===== Audio graph =====
+  let ctx, srcNode, micStream;
+  let master, limiter;
+  let convolver, delay, delayFb;
+  let snippets = [];     
+  let running = false;
+  let schedulerTimer = null;
+  let sampleRate = 48000;
+
+  // ===== VAD / sentence segmentation =====
+  const SEG = {
+    rmsVoice: 0.015,         
+    rmsSilence: 0.008,       
+    minSentenceMs: 350,      
+    endSilenceMs: 500,       
+    maxSentenceMs: 9000,     
+  };
+
+  let sp = { 
+    voiced: false,
+    voiceMs: 0,
+    silenceMs: 0,
+    currentChunks: [], 
+    totalMs: 0
+  };
+
+  // ===== Helpers =====
+  const clamp = (x,a,b)=>Math.min(b,Math.max(a,x));
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const rand = (a,b)=>a+Math.random()*(b-a);
+  const ramp = (param, to, t)=>{ param.cancelScheduledValues(ctx.currentTime); param.setTargetAtTime(to, ctx.currentTime, Math.max(0.001,t)); };
+
+  function createImpulse(ctx, dur=2.7, decay=3.2){
+    const sr = ctx.sampleRate, len = Math.floor(dur*sr);
+    const buf = ctx.createBuffer(2, len, sr);
+    for (let ch=0; ch<2; ch++){
+      const data = buf.getChannelData(ch);
+      for (let i=0;i<len;i++){
+        const t = i/len;
+        const e = Math.pow(1-t, decay);
+        const n = (Math.random()*2-1) * e;
+        data[i] = n * 0.6;
+      }
+    }
+    return buf;
+  }
+
+  function floatConcat(chunks){
+    let total=0; for (const c of chunks) total+=c.length;
+    const out=new Float32Array(total);
+    let o=0; for(const c of chunks){ out.set(c,o); o+=c.length; }
+    return out;
+  }
+
+  function floatToBuffer(float32, sr){
+    const buf = ctx.createBuffer(1, float32.length, sr);
+    buf.copyToChannel(float32, 0, 0);
+    return buf;
+  }
+
+  function reverseBuffer(src){
+    const len = src.length;
+    const out = ctx.createBuffer(src.numberOfChannels, len, src.sampleRate);
+    for (let ch=0; ch<src.numberOfChannels; ch++){
+      const a = src.getChannelData(ch);
+      const b = out.getChannelData(ch);
+      for (let i=0;i<len;i++) b[i] = a[len-1-i];
+    }
+    return out;
+  }
+
+  // ===== Start / Stop =====
+  ui.start.onclick = async ()=>{
+    if (running) return;
+    try{
+      ctx = new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+      await ctx.resume();
+      sampleRate = ctx.sampleRate;
+
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+      });
+      srcNode = ctx.createMediaStreamSource(micStream);
+
+      master = ctx.createGain(); master.gain.value = 0.95;
+      limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -8; limiter.knee.value=8; limiter.ratio.value=12;
+      limiter.attack.value=0.003; limiter.release.value=0.08;
+      master.connect(limiter); limiter.connect(ctx.destination);
+
+      convolver = ctx.createConvolver();
+      convolver.buffer = createImpulse(ctx);
+      const reverbSend = ctx.createGain(); reverbSend.gain.value=0.3;
+      convolver.connect(master);
+
+      delay = ctx.createDelay(); delay.delayTime.value = 0.33;
+      delayFb = ctx.createGain(); delayFb.gain.value = 0.45;
+      delay.connect(delayFb); delayFb.connect(delay);
+      const delaySend = ctx.createGain(); delaySend.gain.value = 0.25;
+      delay.connect(master);
+
+      const proc = ctx.createScriptProcessor(2048, 1, 1);
+      const mute = ctx.createGain(); mute.gain.value = 0.0;
+      srcNode.connect(proc); proc.connect(mute); mute.connect(ctx.destination);
+
+      proc.onaudioprocess = (e)=>{
+        const input = e.inputBuffer.getChannelData(0);
+        let last=0; const hpAlpha = Math.exp(-2*Math.PI*80/sampleRate);
+        const temp = new Float32Array(input.length);
+        for (let i=0;i<input.length;i++){
+          const x = input[i];
+          const y = x - last + hpAlpha * (temp[i-1] || 0);
+          last = x; temp[i] = y;
+        }
+        let sum=0; for (let i=0;i<temp.length;i++){ const v=temp[i]; sum += v*v; }
+        const rms = Math.sqrt(sum / temp.length);
+
+        const ms = (temp.length / sampleRate) * 1000;
+        sp.totalMs += ms;
+
+        if (sp.voiced){
+          sp.voiceMs += ms;
+          if (rms < SEG.rmsSilence) sp.silenceMs += ms; else sp.silenceMs = 0;
+          sp.currentChunks.push(new Float32Array(temp));
+          if (sp.silenceMs >= SEG.endSilenceMs || sp.voiceMs >= SEG.maxSentenceMs){
+            finalizeSentence();
+          }
+        } else {
+          if (rms >= SEG.rmsVoice){
+            sp.voiced = true;
+            sp.voiceMs = 0; sp.silenceMs = 0; sp.currentChunks = [];
+            sp.currentChunks.push(new Float32Array(temp));
+          }
+        }
+      };
+
+      function finalizeSentence(){
+        const dur = sp.voiceMs;
+        sp.voiced = false;
+        if (dur >= SEG.minSentenceMs){
+          const merged = floatConcat(sp.currentChunks);
+          const buf = floatToBuffer(merged, sampleRate);
+          snippets.push({buffer:buf, duration:buf.duration});
+          if (snippets.length > 50) snippets.shift();
+          setCount(snippets.length);
+          setStatus('captured sentence', 'ok');
+        }
+        sp.currentChunks = []; sp.voiceMs=0; sp.silenceMs=0;
+      }
+
+      running = true;
+      ui.start.disabled = true;
+      ui.stop.disabled = false;
+      ui.scare.disabled = false;
+      setStatus('listening… speak a sentence', 'ok');
+      scheduleNext();
+
+      ui.scare.onclick = ()=>{
+        if (!snippets.length){
+          setStatus('Need >1 captured sentence', 'bad'); return;
+        }
+        const longest = snippets.reduce((a,b)=> a.duration>b.duration?a:b, snippets[0]).buffer;
+        
+        playSnippet(longest, {
+          gain: 0.8, pan: -0.5, rate: 1.5, reverb: 0.9, echo: 0.2, detuneCents: 50, tone: 3000, distort: 50
+        });
+
+        const revBuf = reverseBuffer(longest);
+        playSnippet(revBuf, {
+          gain: 0.7, pan: 0.5, rate: 0.7, reverb: 0.6, echo: 0.8, detuneCents: -500, tone: 600, distort: 600
+        });
+
+        triggerSynthScare();
+      };
+
+      function triggerSynthScare() {
+        const osc1 = ctx.createOscillator();
+        const g1 = ctx.createGain();
+        osc1.frequency.setValueAtTime(150, ctx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 1.5);
+        g1.gain.setValueAtTime(0.8, ctx.currentTime);
+        g1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
+        osc1.connect(g1); g1.connect(master);
+        osc1.start(); osc1.stop(ctx.currentTime + 2.0);
+
+        const osc2 = ctx.createOscillator();
+        const g2 = ctx.createGain();
+        osc2.type = 'sawtooth';
+        osc2.frequency.setValueAtTime(800, ctx.currentTime);
+        osc2.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.1);
+        osc2.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.8);
+        g2.gain.setValueAtTime(0.1, ctx.currentTime);
+        g2.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.1);
+        g2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.0);
+        
+        const revSend = ctx.createGain(); revSend.gain.value = 0.8;
+        g2.connect(revSend); revSend.connect(convolver);
+        g2.connect(master);
+        osc2.start(); osc2.stop(ctx.currentTime + 1.0);
+      }
+
+      function playSnippet(buffer, opts={}){
+        const {
+          gain=0.6, pan=rand(-0.8,0.8), rate=1.0, detuneCents=0,
+          reverb = +ui.fxReverb.value, echo = +ui.fxEcho.value,
+          distort = +ui.fxDistort.value, tone = +ui.fxTone.value
+        } = opts;
+
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.playbackRate.value = rate;
+        if (src.detune) src.detune.value = detuneCents;
+
+        const g = ctx.createGain(); g.gain.value = gain;
+        const p = ctx.createStereoPanner(); p.pan.value = pan;
+        const sendR = ctx.createGain(); sendR.gain.value = reverb;
+        const sendD = ctx.createGain(); sendD.gain.value = echo;
+        const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = tone;
+        const sh = ctx.createWaveShaper(); sh.curve = distortionCurve(distort);
+
+        src.connect(lp); lp.connect(sh); sh.connect(p); p.connect(g); g.connect(master);
+        src.connect(sendR); sendR.connect(convolver);
+        src.connect(sendD); sendD.connect(delay);
+        src.onended = ()=>{ g.disconnect(); p.disconnect(); sendR.disconnect(); sendD.disconnect(); lp.disconnect(); sh.disconnect(); };
+        src.start();
+      }
+
+      function distortionCurve(amount){
+        const n=44100, curve=new Float32Array(n), deg=Math.PI/180;
+        for (let i=0;i<n;i++){ const x=i*2/n-1; curve[i]=(3+amount)*x*20*deg/(Math.PI+amount*Math.abs(x)); }
+        return curve;
+      }
+
+      function scheduleNext(){
+        if (!running) return;
+        const fear = +ui.intensity.value;
+        const minWait = lerp(1400, 500, fear);
+        const maxWait = lerp(3200, 1400, fear);
+        const wait = Math.floor(rand(minWait, maxWait));
+        
+        schedulerTimer = setTimeout(()=>{
+          if (snippets.length){
+            const pick = snippets[Math.floor(Math.random()*snippets.length)].buffer;
+            const takeFull = Math.random() < 0.35;
+            let useBuf = pick;
+            if (!takeFull){
+              const frac = rand(0.4, 0.85); 
+              const span = rand(0.35, 0.7); 
+              const start = Math.floor(pick.length*frac);
+              const length = Math.min(pick.length - start, Math.floor(pick.length*span));
+              const sub = ctx.createBuffer(1, length, pick.sampleRate);
+              sub.copyToChannel(pick.getChannelData(0).slice(start, start+length), 0, 0);
+              useBuf = sub;
+            }
+            const allowRev = ui.allowReverse.checked;
+            const allowPitch = ui.allowPitch.checked;
+            const reverse = allowRev && Math.random() < lerp(0.2, 0.55, fear);
+            if (reverse) useBuf = reverseBuffer(useBuf);
+            const rate = allowPitch ? rand(lerp(0.9, 0.75, fear), lerp(1.1, 1.35, fear)) : 1.0;
+            const detune = allowPitch ? Math.floor(rand(-400, 200)*fear) : 0;
+            playSnippet(useBuf, {
+              gain: lerp(0.35, 0.8, fear), pan: rand(-1,1), rate, detuneCents: detune
+            });
+          }
+          scheduleNext();
+        }, wait);
+      }
+
+    }catch(err){
+      console.error(err);
+      setStatus('error: '+err.message, 'bad');
+      stopAll();
+    }
+  };
+
+  ui.stop.onclick = ()=> stopAll();
+
+  function stopAll(){
+    running = false;
+    if (schedulerTimer) clearTimeout(schedulerTimer);
+    if (micStream) { try{ micStream.getTracks().forEach(t=>t.stop()); }catch{} }
+    if (ctx) { try{ ctx.close(); }catch{} }
+    ui.start.disabled = false; ui.stop.disabled = true; ui.scare.disabled = true;
+    setStatus('Stopped', 'warn');
+  }
+
+  ui.intensity.addEventListener('input', ()=> ui.intensityVal.textContent = (+ui.intensity.value).toFixed(2));
+})();
+</script>
+</body>
+</html>

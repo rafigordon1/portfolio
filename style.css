@@ -477,13 +477,19 @@
   .about-text h2 { font-size: 0.9rem; text-transform: uppercase; opacity: 0.6; margin-bottom: 2rem; letter-spacing: 0.2em; }
   .about-text p { font-size: 1.5rem; font-weight: 100; line-height: 1.6; margin-bottom: 0; max-width: 600px; }
   
-  .slideshow-wrapper { width: 100vw; margin-left: calc(-1 * var(--spacing-outer)); margin-top: 5rem; margin-bottom: 5rem; overflow-x: auto; overflow-y: hidden; }
+  .slideshow-wrapper { 
+      width: 100vw; 
+      margin-left: calc(-1 * var(--spacing-outer)); 
+      margin-top: 5rem; 
+      margin-bottom: 5rem; 
+      position: relative; 
+  }
   
   /* Standard Horizontal Scroll Container */
   .slideshow-container { 
       display: flex; gap: 1rem; 
       padding: 0 var(--spacing-outer) 2rem; 
-      width: fit-content; 
+      width: 100%; /* Changed from fit-content to 100% to ensure correct initial rendering */
       flex-wrap: nowrap;
       /* Allow manual scroll if JS fails */
       overflow-x: auto;

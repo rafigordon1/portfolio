@@ -2,105 +2,88 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Aurora Loom — Left Dock + Snappy Cursor</title>
+  <title>HoloGrid Flux — In-Sync Interaction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root {
-      --ink-0: #0a0b10;
-      --ink-1: #0f1020;
-      --ink-2: #12132a;
-      --accent-1: #8c5bff;
-      --accent-2: #00ffd5;
-      --glass: rgba(255,255,255,.06);
-      --glass-2: rgba(255,255,255,.12);
-      --line: rgba(255,255,255,.14);
-      --line-2: rgba(255,255,255,.25);
-      --txt: rgba(255,255,255,.95);
-      --muted: rgba(255,255,255,.78);
-    }
-    html, body { height: 100%; margin: 0; background: radial-gradient(1200px 800px at 70% -10%, #231b4d 0%, var(--ink-1) 40%, var(--ink-0) 100%); overflow: hidden; }
+    html, body { height: 100%; margin: 0; background: #05060a; overflow: hidden; }
     .root { position: relative; width: 100%; height: 100%; }
 
-    /* Canvas host */
-    #loomHost { position: absolute; inset: 0; overflow: hidden; border-radius: 18px; cursor: none; }
+    #voidHost { position: absolute; inset: 0; overflow: hidden; border-radius: 16px; cursor: none; }
     video#cam { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
 
-    /* White cursor dot — tighter hover fidelity */
+    /* Cursor dot */
     .cursor-dot {
-      position: absolute; width: 11px; height: 11px; border-radius: 50%;
-      background: radial-gradient(circle at 50% 50%, #fff 0 55%, rgba(255,255,255,.35) 70%, rgba(255,255,255,0) 80%);
-      filter: drop-shadow(0 0 18px rgba(255,255,255,.85)) drop-shadow(0 0 2px rgba(255,255,255,.9));
-      pointer-events: none; z-index: 15; transform: translate(-50%,-50%);
-      opacity: .95; transition: opacity .18s ease;
+      position: absolute; width: 10px; height: 10px; border-radius: 50%;
+      background: #fff; box-shadow: 0 0 18px rgba(255,255,255,.85), 0 0 2px rgba(255,255,255,.9) inset;
+      pointer-events: none; z-index: 15; transform: translate(-50%,-50%); opacity: .95; transition: opacity .18s ease;
     }
 
-    /* LEFT dock: only pops out if hovering the toggle */
+    /* Control panel */
     .panel {
-      position: absolute; top: 16px; left: 16px; z-index: 20; color: var(--txt);
+      position: absolute; top: 12px; left: 12px; z-index: 20; color: #fff;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      min-width: 280px; max-width: min(460px, 92vw);
-    }
-    .pill {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 8px 12px; font-size: 12px; letter-spacing: .06em; border-radius: 10px;
-      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(0,0,0,.25));
-      border: 1px solid var(--line); cursor: default;
-      box-shadow: 0 6px 18px rgba(0,0,0,.25);
       user-select: none;
     }
-    .drop {
-      position: relative;
-      max-height: 0; overflow: hidden;
-      background: rgba(10,12,18,.45); backdrop-filter: blur(14px);
-      border: 1px solid var(--line); border-radius: 12px;
-      padding: 0; box-shadow: 0 24px 60px rgba(0,0,0,.45);
-      margin-top: 8px;
-      scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
-      transition: max-height 240ms ease, padding 240ms ease;
+    .pill {
+      padding: 7px 12px; font-size: 12px; letter-spacing: .04em; border-radius: 999px;
+      backdrop-filter: blur(10px); background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.20));
+      border: 1px solid rgba(255,255,255,.16); cursor: default; transition: background 160ms ease, border 160ms ease;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
     }
-    .drop::-webkit-scrollbar { width: 10px; }
-    .drop::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; }
-    /* Open only when pill triggered (via JS adds .open to .panel) */
-    .panel.open .drop { max-height: 76vh; overflow: auto; padding: 12px; }
+    .panel:hover .pill { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(0,0,0,.26)); border-color: rgba(255,255,255,.24); }
 
-    .section { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--glass); }
+    /* Droplist */
+    .drop {
+      position: absolute; top: 36px; left: 0; width: min(420px, 92vw);
+      max-height: 0; overflow: hidden;
+      border-radius: 14px; background: rgba(10,10,12,.30); border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(12px); padding: 0 14px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+      transition: max-height 220ms ease, padding 220ms ease;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent;
+    }
+    .panel:hover .drop { max-height: 82vh; overflow: auto; padding: 12px 14px 16px; }
+    .drop::-webkit-scrollbar { width: 10px; }
+    .drop::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 10px; }
+    .section { margin-top: 12px; }
     .section h4 {
-      margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--muted);
+      margin: 8px 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; opacity: .9;
       display: flex; align-items: center; gap: 8px;
     }
     .section h4::before {
-      content: ""; width: 7px; height: 7px; border-radius: 50%;
-      background: radial-gradient(circle at 40% 40%, var(--accent-2), var(--accent-1));
-      box-shadow: 0 0 10px var(--accent-1), 0 0 20px var(--accent-2);
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: linear-gradient(90deg, #ff6bd6, #53a6ff); box-shadow: 0 0 10px rgba(83,166,255,.9);
     }
 
     .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .row {
       display: grid; grid-template-columns: 120px 1fr 72px; align-items: center; gap: 8px;
-      padding: 8px 10px; border-radius: 10px; background: var(--glass-2); border: 1px solid var(--line);
+      padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.10);
     }
-    .row label { font-size: 12px; color: var(--txt); }
+    .row label { font-size: 12px; opacity: .92; }
     .val {
       justify-self: end; min-width: 52px; text-align: right; font-size: 11px; font-variant-numeric: tabular-nums;
-      padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.10); border: 1px solid var(--line);
+      padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
     }
 
+    /* Select aesthetic wrapper */
     .selectwrap {
       position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center;
-      background: rgba(255,255,255,.08); border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: 10px; padding: 4px 8px;
     }
     .selectwrap select {
-      width: 100%; font-size: 13px; color: var(--txt); background: transparent; border: none; outline: none;
+      width: 100%; font-size: 13px; color: #fff; background: transparent; border: none; outline: none;
       appearance: none; -webkit-appearance: none; padding: 6px 28px 6px 6px;
     }
-    .selectwrap:after { content: "▾"; color: var(--txt); margin-left: -20px; margin-right: 4px; pointer-events: none; }
+    .selectwrap:after {
+      content: "▾"; color: rgba(255,255,255,.85); margin-left: -20px; margin-right: 4px; pointer-events: none;
+    }
     .badge {
       margin-left: 8px; font-size: 11px; padding: 4px 8px; border-radius: 999px;
-      background: rgba(255,255,255,.10); border: 1px solid var(--line);
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
     }
 
     input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; outline: none;
-      background: linear-gradient(90deg, rgba(255,255,255,.35), rgba(255,255,255,.1)); }
+      background: linear-gradient(90deg, rgba(255,255,255,.3), rgba(255,255,255,.1)); }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
       background: #fff; border: 1px solid rgba(0,0,0,.2); box-shadow: 0 1px 6px rgba(0,0,0,.5); }
     input[type="checkbox"] { transform: translateY(1px); }
@@ -108,21 +91,21 @@
 
     /* Eye calibration overlay */
     .overlay { position: absolute; inset: 0; z-index: 30; display: none; place-items: center;
-      background: rgba(5,7,12,.78); color: #fff; text-align: center; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+      background: rgba(0,0,0,.72); color: #fff; text-align: center; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
     .overlay.show { display: grid; }
 
     .calib-wrap { position: relative; width: min(1600px, 96vw); }
     .calib-card {
       position: relative; z-index: 2;
       border-radius: 14px; padding: 16px 18px; margin: 0 auto 14px;
-      background: rgba(0,0,0,.35); border: 1px solid var(--line); backdrop-filter: blur(10px);
+      background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(10px);
     }
     .calib-card h2 { margin: 0 0 8px; font-size: 20px; letter-spacing: .02em; }
     .calib-card .meta { font-size: 12px; opacity: .85; margin-bottom: 8px; }
     .calib-card .foot { font-size: 12px; opacity: .8; margin-top: 8px; }
     .btn {
       display: inline-block; margin-top: 10px; padding: 10px 14px; border-radius: 999px;
-      background: rgba(255,255,255,.12); border: 1px solid var(--line); color: #fff; cursor: pointer;
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #fff; cursor: pointer;
       transition: background .15s ease; font-size: 13px; letter-spacing: .02em;
     }
     .btn[disabled] { opacity: .55; cursor: default; }
@@ -135,24 +118,24 @@
       height: min(78vh, 860px);
       margin: 0 auto;
       border-radius: 16px;
-      border: 1px solid var(--line-2);
-      background: radial-gradient(800px 480px at 50% 0%, rgba(140,91,255,.12), rgba(0,0,0,.18) 50%);
-      box-shadow: inset 0 0 24px rgba(0,0,0,.5);
+      border: 1px solid rgba(255,255,255,.20);
+      background: rgba(0,0,0,.18);
+      box-shadow: inset 0 0 20px rgba(0,0,0,.45);
       overflow: visible;
     }
     .targets { position: absolute; inset: 0; pointer-events: none; }
     .t {
       position: absolute; width: 18px; height: 18px; border-radius: 50%;
-      background: #e0f7fa; opacity: .95; border: 1px solid rgba(255,255,255,.9);
+      background: #cfd8dc; opacity: .95; border: 1px solid rgba(255,255,255,.9);
       box-shadow: 0 0 18px rgba(255,255,255,.65); transform: translate(-50%, -50%);
       transition: transform .08s ease, background .08s ease, box-shadow .08s ease;
     }
-    .t.active { background: #00ffd5; box-shadow: 0 0 36px rgba(0,255,213,.95); transform: translate(-50%, -50%) scale(1.25); }
+    .t.active { background: #00d26a; box-shadow: 0 0 36px rgba(0,210,106,.95); transform: translate(-50%, -50%) scale(1.25); }
   </style>
 </head>
 <body>
   <div class="root">
-    <div id="loomHost"></div>
+    <div id="voidHost"></div>
     <div id="cursorDot" class="cursor-dot"></div>
     <video id="cam" playsinline autoplay muted></video>
 
@@ -161,7 +144,7 @@
       <div class="calib-wrap">
         <div class="calib-card">
           <h2>Eye Tracking Calibration</h2>
-          <div class="meta">Aurora Loom • Quadratic map fit</div>
+          <div class="meta"></div>
           <div class="progress" id="calibProgress">Ready.</div>
           <button id="eyeStartBtn" class="btn">Begin Calibration</button>
           <div class="foot">Tip: sit ~50–70 cm from the screen with even lighting; keep head steady.</div>
@@ -172,10 +155,10 @@
       </div>
     </div>
 
-    <!-- LEFT pop-out panel -->
-    <div class="panel" id="panel">
-      <div class="pill" id="pill">⚙︎ Loom <span class="badge" id="statusVal">Idle</span></div>
-      <div class="drop" id="drop">
+    <!-- Control panel (opens on hover) -->
+    <div class="panel">
+      <div class="pill">⚙︎ HoloGrid</div>
+      <div class="drop">
         <div class="section">
           <h4>Input</h4>
           <div class="grid">
@@ -188,15 +171,15 @@
                   <option value="body">Body</option>
                   <option value="eye">Eye</option>
                 </select>
-                <span class="badge" id="statusMini">OK</span>
+                <span class="badge" id="statusVal">Idle</span>
               </div>
             </div>
-            <div class="note">Hover ⚙︎ to open. Eye mode requires calibration.</div>
+            <div class="note"></div>
           </div>
         </div>
 
         <div class="section">
-          <h4>Field</h4>
+          <h4>Surface</h4>
           <div class="grid">
             <div class="row"><label>Density</label><input id="density" type="range" min="0.2" max="3" step="0.01"/><div class="val" id="densityVal"></div></div>
             <div class="row"><label>Hue Shift</label><input id="hueShift" type="range" min="0" max="360" step="1"/><div class="val" id="hueShiftVal"></div></div>
@@ -209,8 +192,8 @@
         <div class="section">
           <h4>Motion</h4>
           <div class="grid">
-            <div class="row"><label>Global Speed</label><input id="speed" type="range" min="0" max="5" step="0.01"/><div class="val" id="speedVal"></div></div>
-            <div class="row"><label>Flow Speed</label><input id="starSpeed" type="range" min="0" max="5" step="0.01"/><div class="val" id="starSpeedVal"></div></div>
+            <div class="row"><label>Global Speed</label><input id="speed" type="range" min="0" max="10" step="0.01"/><div class="val" id="speedVal"></div></div>
+            <div class="row"><label>Flow Drift</label><input id="starSpeed" type="range" min="0" max="5" step="0.01"/><div class="val" id="starSpeedVal"></div></div>
             <div class="row"><label>Auto Rotate</label><input id="rotationSpeed" type="range" min="-2" max="2" step="0.001"/><div class="val" id="rotationSpeedVal"></div></div>
             <div class="row"><label>Shimmer</label><input id="twinkle" type="range" min="0" max="1" step="0.01"/><div class="val" id="twinkleVal"></div></div>
           </div>
@@ -219,7 +202,7 @@
         <div class="section">
           <h4>Interaction</h4>
           <div class="grid">
-            <div class="row"><label>Repulsion</label><input id="repulseOn" type="checkbox"/><div></div></div>
+            <div class="row"><label>Repel (toggle)</label><input id="repulseOn" type="checkbox"/><div></div></div>
             <div class="row"><label>Strength</label><input id="repulseStrength" type="range" min="0" max="6" step="0.05"/><div class="val" id="repulseStrengthVal"></div></div>
             <div class="row"><label>Auto Center Push</label><input id="autoCenter" type="range" min="0" max="6" step="0.05"/><div class="val" id="autoCenterVal"></div></div>
           </div>
@@ -245,14 +228,14 @@
     const params = {
       focal: [0.5, 0.5],
       rotation: [1.0, 0.0],
-      starSpeed: 0.8,
-      density: 1.15,
-      hueShift: 180,
-      speed: 1.1,
-      glowIntensity: 0.55,
-      saturation: 0.22,
-      mouseRepulsion: true,
-      repulsionStrength: 2.0,
+      starSpeed: 0.6,
+      density: 1.2,
+      hueShift: 300,
+      speed: 1.0,
+      glowIntensity: 0.45,
+      saturation: 0.35,
+      mouseRepulsion: false,     // DEFAULT NOW: FOLLOW (attract). Toggle in UI to repel.
+      repulsionStrength: 2.2,
       twinkleIntensity: 0.35,
       rotationSpeed: 0.05,
       autoCenterRepulsion: 0.0,
@@ -261,14 +244,10 @@
     };
 
     /* ---------------- DOM ---------------- */
-    const host = document.getElementById("loomHost");
+    const host = document.getElementById("voidHost");
     const statusEl = document.getElementById("statusVal");
-    const statusMini = document.getElementById("statusMini");
     const cursorDot = document.getElementById("cursorDot");
     const videoEl = document.getElementById("cam");
-    const panel = document.getElementById("panel");
-    const pill = document.getElementById("pill");
-    const drop = document.getElementById("drop");
 
     const eyeOverlay   = document.getElementById("eyeCalib");
     const eyeStartBtn  = document.getElementById("eyeStartBtn");
@@ -278,6 +257,8 @@
 
     /* --------- Eye calibration (quadratic) state --------- */
     let eyeCalibrated = false;
+    // x' = a1*x + a2*y + a3*x^2 + a4*x*y + a5*y^2 + a6
+    // y' = b1*x + b2*y + b3*x^2 + b4*x*y + b5*y^2 + b6
     let c = { a1:1,a2:0,a3:0,a4:0,a5:0,a6:0, b1:0,b2:1,b3:0,b4:0,b5:0,b6:0 };
 
     /* ---------------- Shaders ---------------- */
@@ -285,6 +266,7 @@
       attribute vec2 uv; attribute vec2 position; varying vec2 vUv;
       void main(){ vUv = uv; gl_Position = vec4(position, 0.0, 1.0); }
     `;
+
     const fragmentShader = `
       precision highp float; varying vec2 vUv;
       uniform float uTime; uniform vec3 uResolution; uniform vec2 uFocal; uniform vec2 uRotation;
@@ -294,62 +276,104 @@
       uniform float uAutoCenter; uniform bool uTransparent;
 
       #define TAU 6.28318530718
-      float hash21(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p,p+34.45); return fract(p.x*p.y); }
-      float noise(vec2 x){ vec2 i=floor(x), f=fract(x); vec2 u=f*f*(3.-2.*f);
-        float a=hash21(i), b=hash21(i+vec2(1,0)), c=hash21(i+vec2(0,1)), d=hash21(i+vec2(1,1));
+
+      float hash21(vec2 p){
+        p = fract(p*vec2(123.34, 345.45));
+        p += dot(p, p+34.345);
+        return fract(p.x*p.y);
+      }
+      float n2d(vec2 p){
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        float a = hash21(i);
+        float b = hash21(i + vec2(1.,0.));
+        float c = hash21(i + vec2(0.,1.));
+        float d = hash21(i + vec2(1.,1.));
+        vec2 u = f*f*(3. - 2.*f);
         return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
       }
-      float fbm(vec2 x){ float s=0., a=.5; mat2 R=mat2(0.8,0.6,-0.6,0.8);
-        for(int i=0;i<6;i++){ s+=a*noise(x); x=R*x*2.02; a*=.55; } return s; }
-      vec2 rot2(vec2 p,float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c)*p; }
-      vec3 hsv2rgb(vec3 c){ vec4 K=vec4(1.,2./3.,1./3.,3.); vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www); return c.z*mix(K.xxx, clamp(p-K.xxx,0.,1.), c.y); }
-
-      vec2 hexId(vec2 p){
-        const vec2 k = vec2(1.0, 1.7320508);
-        p = vec2(p.x*2./3., (p.x*1./3. + p.y)/k.y)*k;
-        vec2 i = floor(p + .5);
-        vec2 f = p - i;
-        float d = max(abs(dot(f,vec2(1.,0.))), abs(dot(f,vec2(.5,.8660254))));
-        return vec2(d, hash21(i));
+      float fbm(vec2 p){
+        float s = 0., a = 0.5;
+        for(int i=0;i<5;i++){ s += a*n2d(p); p *= 2.02; a *= 0.55; }
+        return s;
+      }
+      vec3 hex(vec2 p){
+        const vec2 k = vec2(1., 1.73205080757);
+        vec2 q = vec2( dot(p, vec2(1.,0.)/k.x), dot(p, vec2(0.5,0.86602540378)/k.y) );
+        vec2 i = floor(q+0.5);
+        vec2 f = q - i;
+        vec2 r = vec2( f.x, f.y - floor(f.x+0.5) );
+        vec2 g = vec2( r.x, r.y - floor(r.y+0.5) );
+        vec2 b = vec2( g.x - g.y*.5, g.y*0.86602540378 );
+        float d = max(abs(b.x)*1.15470053838 + b.y, -b.y);
+        return vec3(b, d);
+      }
+      vec3 hsv2rgb(vec3 c){
+        vec4 K = vec4(1., 2./3., 1./3., 3.);
+        vec3 p = abs(fract(c.xxx + K.xyz) * 6. - K.www);
+        return c.z * mix(K.xxx, clamp(p - K.xxx, 0., 1.), c.y);
       }
 
       void main(){
         vec2 res = uResolution.xy;
-        vec2 focalPx = uFocal*res;
-        vec2 uv = (vUv*res - focalPx)/max(res.y,1.);
-        uv = mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x) * uv;
-        uv = rot2(uv, uTime*uRotSpeed);
+        vec2 focalPx = uFocal * res;
+        vec2 uv = (vUv * res - focalPx) / max(res.y, 1.);
 
-        vec2 m = (uMouse*res - focalPx)/max(res.y,1.);
-        float md = max(length(uv - m), 1e-3);
-        vec2 dir = normalize(uv - m);
-        if(uAutoCenter>0.){ uv += normalize(uv) * (uAutoCenter/(length(uv)+.001)) * 0.045; }
-        if(uMouseRepulse){ uv += dir * (uRepulse/md) * 0.045 * uMouseActive; } else { uv -= dir * 0.02 * uMouseActive; }
+        float a = uTime * uRotSpeed;
+        mat2 R = mat2(cos(a), -sin(a), sin(a), cos(a));
+        uv = R * uv;
+        uv = mat2(uRotation.x, -uRotation.y, uRotation.y, uRotation.x) * uv;
 
-        float scale = mix(10., 40., clamp(uDensity/3., 0., 1.));
-        vec2 hx = hexId(uv*scale);
-        float loom = smoothstep(0.65, 0.0, hx.x);
-        float glint = pow(sin((hx.x + uTime*uSpeed*0.35 + hx.y*2.0)*TAU)*0.5+0.5, 6.);
-        float shimmer = mix(0.2, 1.0, uTwinkle);
-        float loomLight = loom*shimmer + glint*0.6*shimmer;
+        vec2 m = (uMouse * res - focalPx) / max(res.y, 1.);
+        vec2 d = uv - m;
+        float md = length(d) + 1e-4;
 
-        vec2 flow = uv;
-        float t = uTime * (0.4 + uSpeed*0.2) + uStarClock*2.0;
-        flow += rot2(vec2(fbm(uv*1.25 + t*0.07), fbm(uv*1.25 - t*0.06)), 0.5);
-        float s1 = fbm(flow*1.8 + vec2(0.0, t*0.15));
-        float s2 = fbm(rot2(flow,1.2)*2.8 - vec2(t*0.12, 0.0));
-        float ribbons = smoothstep(0.45, 0.9, s1) * 0.75 + smoothstep(0.5, 0.95, s2) * 0.65;
+        if (uAutoCenter > 0.) {
+          vec2 dir = normalize(uv + 1e-5);
+          uv += dir * (uAutoCenter/(length(uv)+.1)) * 0.05;
+        } else {
+          float s = uRepulse * uMouseActive;
+          // FOLLOW when uMouseRepulse==false  (pull towards pointer)
+          if (uMouseRepulse) uv += normalize(d) * (s / (md + .05)) * 0.05;
+          else               uv -= normalize(d) * (s / (md + .05)) * 0.05;
+        }
 
-        float hue = fract(uHueShift/360. + 0.05*ribbons + 0.08*fbm(uv*0.8 + t*0.05));
-        float sat = clamp(0.25 + 0.75*uSat, 0., 1.);
-        float val = clamp(0.25 + 0.85*ribbons + 0.35*loomLight, 0., 1.);
-        vec3 aurora = hsv2rgb(vec3(hue, sat, val));
-        float veins = smoothstep(0.55, 0.95, ribbons) + loomLight*0.8;
-        vec3 col = aurora + aurora * (veins * (0.6 + clamp(uGlow,0.,1.5)*1.6));
-        col *= smoothstep(1.35, 0.1, length(uv)*0.55);
+        float scale = mix(8.0, 32.0, clamp(uDensity/3.0, 0.0, 1.0));
+        vec2 p = uv * scale;
 
-        if(uTransparent){
-          float alpha = pow(clamp(max(max(col.r,col.g),col.b), 0., 1.), 0.75);
+        float drift = uStarClock * (0.6 + 0.8*uSpeed);
+        vec2 flow = vec2( fbm(p*0.25 + drift), fbm(p*0.25 - drift) ) - 0.5;
+        p += flow * (1.2*uStarClock + 0.8*uSpeed);
+
+        vec3 h = hex(p);
+        float edge = 1.0 - smoothstep(0.01, 0.04 + 0.02*uGlow, abs(h.z));
+
+        float shimmer = fbm(p + vec2(0.0, drift*2.0));
+        shimmer = mix(0.3, 1.0, smoothstep(0.0, 1.0, shimmer));
+        shimmer = mix(1.0, shimmer, clamp(uTwinkle, 0.0, 1.0));
+
+        float baseHue = fract(uHueShift/360.0);
+        float cellHue = baseHue + 0.15*sin( (h.x+h.y)*0.5 + uTime*0.5*uSpeed );
+        float edgeHue = baseHue + 0.35 + 0.25*sin( (h.x-h.y)*0.8 - uTime*0.7*uSpeed );
+
+        vec3 cellCol = hsv2rgb(vec3(cellHue, clamp(uSat*0.9 + 0.1, 0.0, 1.0), 0.75 + 0.25*shimmer));
+        vec3 rimCol  = hsv2rgb(vec3(edgeHue, clamp(uSat, 0.0, 1.0), 1.0));
+
+        float rim = pow(edge, 1.4);
+        float core = 1.0 - smoothstep(0.08, 0.28, abs(h.z));
+        vec3 col = cellCol * core + rimCol * rim * (1.0 + 0.8*uGlow);
+
+        float fringe = smoothstep(0.02, 0.0, abs(h.z));
+        col += vec3(0.02, 0.00, 0.06) * fringe * (0.6 + 1.2*uGlow);
+
+        float vig = smoothstep(1.6, 0.1, length(uv));
+        col *= mix(0.75, 1.2, vig);
+
+        vec3 wash = hsv2rgb(vec3(baseHue + 0.55, clamp(uSat*0.6,0.,1.), 0.15));
+        col = mix(wash, col, 0.92);
+
+        if (uTransparent){
+          float alpha = clamp(0.15 + 0.85*vig, 0.0, 1.0);
           gl_FragColor = vec4(col, alpha);
         } else {
           gl_FragColor = vec4(col, 1.0);
@@ -363,8 +387,6 @@
     const smoothMouse = { x: 0.5, y: 0.5 };
     const targetActive = { v: 0.0 };
     const smoothActive = { v: 0.0 };
-
-    /* Eye-mode cursor policy */
     let lastPointerTs = 0;
 
     function initRenderer() {
@@ -412,35 +434,21 @@
       mesh = new Mesh(gl, { geometry, program });
       host.appendChild(gl.canvas);
 
-      /* ---------- Pointer: make white dot match mouse exactly in mouse mode ---------- */
+      const getCanvasRect = () => gl.canvas.getBoundingClientRect();
       const onPointerMove = (clientX, clientY) => {
-        const rect = host.getBoundingClientRect();
+        const rect = getCanvasRect();
         const x = (clientX - rect.left) / rect.width;
-        const y = 1.0 - (clientY - rect.top) / rect.height;
-        const cx = clamp01(x), cy = clamp01(y);
-
-        targetMouse.x = cx;
-        targetMouse.y = cy;
+        const y = (clientY - rect.top) / rect.height;
+        targetMouse.x = Math.min(1, Math.max(0, x));
+        targetMouse.y = Math.min(1, Math.max(0, 1 - y));
         targetActive.v = 1.0;
         lastPointerTs = performance.now();
-
-        // No smoothing lag in mouse mode for pixel-accurate cursor
-        if (params.inputSource === "mouse") {
-          smoothMouse.x = cx;
-          smoothMouse.y = cy;
-          smoothActive.v = 1.0;
-        }
-        // Snap the visual dot immediately (UI feedback), independent of render loop
-        const px = cx * rect.width;
-        const py = (1 - cy) * rect.height;
-        cursorDot.style.left = `${px}px`;
-        cursorDot.style.top  = `${py}px`;
       };
 
-      host.addEventListener("mousemove", (e) => onPointerMove(e.clientX, e.clientY));
-      host.addEventListener("mouseleave", () => { targetActive.v = 0.0; });
-      host.addEventListener("touchmove", (e) => { const t = e.touches[0]; if (t) onPointerMove(t.clientX, t.clientY); }, { passive: true });
-      host.addEventListener("touchend", () => { targetActive.v = 0.0; });
+      gl.canvas.addEventListener("mousemove", (e) => onPointerMove(e.clientX, e.clientY));
+      gl.canvas.addEventListener("mouseleave", () => { targetActive.v = 0.0; });
+      gl.canvas.addEventListener("touchmove", (e) => { const t = e.touches[0]; if (t) onPointerMove(t.clientX, t.clientY); }, { passive: true });
+      gl.canvas.addEventListener("touchend", () => { targetActive.v = 0.0; });
 
       const loop = (t) => {
         rafId = requestAnimationFrame(loop);
@@ -450,19 +458,18 @@
         program.uniforms.uStarClock.value = (timeSec * params.starSpeed) / 10.0;
 
         const routed = routeInput();
-
-        // For non-mouse sources, keep graceful smoothing
-        const k = (params.inputSource === "mouse") ? 1.0 : 0.06;
         targetMouse.x = routed.x;
         targetMouse.y = routed.y;
         targetActive.v = routed.active;
 
+        const k = 0.18;
         smoothMouse.x += (targetMouse.x - smoothMouse.x) * k;
         smoothMouse.y += (targetMouse.y - smoothMouse.y) * k;
         smoothActive.v += (targetActive.v - smoothActive.v) * k;
 
         program.uniforms.uMouse.value[0] = smoothMouse.x;
         program.uniforms.uMouse.value[1] = smoothMouse.y;
+        program.uniforms.uMouseRepulse.value = params.mouseRepulsion;
         program.uniforms.uMouseActive.value = smoothActive.v;
         program.uniforms.uFocal.value[0] = params.focal[0];
         program.uniforms.uFocal.value[1] = params.focal[1];
@@ -473,7 +480,6 @@
         program.uniforms.uSpeed.value = params.speed;
         program.uniforms.uGlow.value = params.glowIntensity;
         program.uniforms.uSat.value = params.saturation;
-        program.uniforms.uMouseRepulse.value = params.mouseRepulsion;
         program.uniforms.uTwinkle.value = params.twinkleIntensity;
         program.uniforms.uRotSpeed.value = params.rotationSpeed;
         program.uniforms.uRepulse.value = params.repulsionStrength;
@@ -482,7 +488,13 @@
 
         renderer.render({ scene: mesh });
 
-        // Cursor visibility
+        // White dot uses same rect + smoothing
+        const rect = getCanvasRect();
+        const px = smoothMouse.x * rect.width;
+        const py = (1 - smoothMouse.y) * rect.height;
+        cursorDot.style.left = `${rect.left + px}px`;
+        cursorDot.style.top  = `${rect.top  + py}px`;
+
         if (params.inputSource === "eye") {
           const idle = performance.now() - lastPointerTs;
           cursorDot.style.opacity = idle < 1000 ? "0.95" : "0";
@@ -510,42 +522,29 @@
     function routeInput() {
       switch (params.inputSource) {
         case "eye":
-          if (!eyeCalibrated) return { x: smoothMouse.x, y: smoothMouse.y, active: 0.0 };
+          if (!eyeCalibrated) return { x: 0.5, y: 0.5, active: 0.0 };
           return eye.ready ? { x: eye.x, y: eye.y, active: Math.max(0.2, eye.conf) }
-                           : { x: smoothMouse.x, y: smoothMouse.y, active: 0.2 };
+                           : { x: targetMouse.x, y: targetMouse.y, active: 0.2 };
         case "hand":
           return hand.ready ? { x: hand.x, y: hand.y, active: Math.max(0.3, hand.conf) }
-                            : { x: smoothMouse.x, y: smoothMouse.y, active: 0.2 };
+                            : { x: targetMouse.x, y: targetMouse.y, active: 0.2 };
         case "body":
           return body.ready ? { x: body.x, y: body.y, active: Math.max(0.3, body.conf) }
-                            : { x: smoothMouse.x, y: smoothMouse.y, active: 0.2 };
+                            : { x: targetMouse.x, y: targetMouse.y, active: 0.2 };
         default:
-          return { x: smoothMouse.x, y: smoothMouse.y, active: 1.0 };
+          return { x: targetMouse.x, y: targetMouse.y, active: targetActive.v };
       }
     }
 
     /* ---------------- UI ---------------- */
     (function initUI(){
-      // Hover logic: only pop out if hovering the toggle (pill). Keep open while inside panel.
-      const openPanel = () => panel.classList.add('open');
-      const closePanel = (e) => {
-        // close when leaving the whole panel
-        if (!panel.contains(e.relatedTarget)) panel.classList.remove('open');
-      };
-      pill.addEventListener('mouseenter', openPanel);
-      panel.addEventListener('mouseleave', closePanel);
-
       const sel = document.getElementById("inputSource");
       sel.value = params.inputSource;
       sel.addEventListener("change", async () => { params.inputSource = sel.value; await activateSource(sel.value); });
 
       const setR = (id,key,fmt=v=>+v)=>{
         const el=document.getElementById(id); if(key) el.value=params[key];
-        el.addEventListener("input",()=>{ const v=fmt(el.value); if(key) params[key]=v;
-          const vv=document.getElementById(id+"Val");
-          if(vv){ vv.textContent=(id==="rotationSpeed"?Number(v).toFixed(3): id==="hueShift"?String(v): Number(v).toFixed(2)); }
-          if(id==="transparent") rebuildTransparency();
-        });
+        el.addEventListener("input",()=>{ const v=fmt(el.value); if(key) params[key]=v; const vv=document.getElementById(id+"Val"); if(vv){ vv.textContent=(+v).toFixed(2);} if(id==="transparent") rebuildTransparency();});
       };
       const setC = (id,key)=>{
         const el=document.getElementById(id); el.checked=!!params[key];
@@ -560,7 +559,7 @@
       setR("starSpeed","starSpeed"); document.getElementById("starSpeedVal").textContent=params.starSpeed.toFixed(2);
       setR("rotationSpeed","rotationSpeed"); document.getElementById("rotationSpeedVal").textContent=params.rotationSpeed.toFixed(3);
       setR("twinkle","twinkleIntensity"); document.getElementById("twinkleVal").textContent=params.twinkleIntensity.toFixed(2);
-      setC("repulseOn","mouseRepulsion");
+      setC("repulseOn","mouseRepulsion");   /* checkbox now means REPULSION when ON */
       setR("repulseStrength","repulsionStrength"); document.getElementById("repulseStrengthVal").textContent=params.repulsionStrength.toFixed(2);
       setR("autoCenter","autoCenterRepulsion"); document.getElementById("autoCenterVal").textContent=params.autoCenterRepulsion.toFixed(2);
       const fx=document.getElementById("focalX"), fy=document.getElementById("focalY"), th=document.getElementById("theta");
@@ -611,8 +610,9 @@
       if (stream) { stream.getTracks().forEach(t => t.stop()); videoEl.srcObject = null; }
       usingCamera = false; setStatus("Camera: off");
     }
-    function setStatus(text) { statusEl.textContent = text; statusMini.textContent = text; }
+    function setStatus(text) { statusEl.textContent = text; }
 
+    /* -------- IN-SYNC mappings (no mirror flip) -------- */
     function onHands(res) {
       const lm = res.multiHandLandmarks && res.multiHandLandmarks[0];
       if (!lm) { hand.ready = false; return; }
@@ -620,8 +620,9 @@
       let px = tip?.x, py = tip?.y;
       if ((px === undefined || py === undefined) && thumb && lm[8]) { px = (thumb.x + lm[8].x) * 0.5; py = (thumb.y + lm[8].y) * 0.5; }
       if (px === undefined || py === undefined) { hand.ready = false; return; }
-      hand.x = clamp01(1 - px);
-      hand.y = clamp01(1 - py);
+      // MediaPipe x: 0..1 left->right ; y: 0..1 top->bottom
+      hand.x = clamp01(px);         // ← no more 1 - px
+      hand.y = clamp01(1 - py);     // flip Y to shader's Y-up
       hand.conf = (res.multiHandedness && res.multiHandedness[0]) ? 0.9 : 0.6;
       hand.ready = true;
     }
@@ -630,12 +631,13 @@
       const lm = res.poseLandmarks;
       if (!lm || !lm.length) { body.ready = false; return; }
       const nose = lm[0], lw = lm[15], rw = lm[16];
-      const xN = nose ? (1 - nose.x) : 0.5;
+      const xN = clamp01(nose?.x ?? 0.5); // ← no more left-right inversion
       let yUp = 0.5;
       if (lw && rw) { const wristY = Math.min(lw.y, rw.y); yUp = 1 - clamp01(wristY); }
       else if (lw || rw) { yUp = 1 - clamp01((lw?.y ?? rw.y)); }
       else { yUp = 1 - clamp01(nose?.y ?? 0.5); }
-      body.x = clamp01(xN); body.y = clamp01(yUp);
+      body.x = xN;
+      body.y = clamp01(yUp);
       body.conf = res.poseWorldLandmarks ? 0.9 : 0.6; body.ready = true;
     }
 
@@ -659,7 +661,8 @@
           const x = eyeRaw.x, y = eyeRaw.y;
           const mx = c.a1*x + c.a2*y + c.a3*x*x + c.a4*x*y + c.a5*y*y + c.a6;
           const my = c.b1*x + c.b2*y + c.b3*x*x + c.b4*x*y + c.b5*y*y + c.b6;
-          eye.x = clamp01(mx); eye.y = clamp01(1 - my);
+          eye.x = clamp01(mx);
+          eye.y = clamp01(1 - my); // Y-up
           eye.conf = eyeRaw.conf; eye.ready = true;
         })
         .showVideo(false).showFaceOverlay(false).showFaceFeedbackBox(false).showPredictionPoints(false)
@@ -668,7 +671,7 @@
     }
     async function stopWebgazer(){ if (!webgazerReady) return; try{ await window.webgazer.end(); }catch{} try{ await window.webgazer.pause(); }catch{} webgazerReady=false; setStatus("Eye: off"); }
 
-    /* ------------- Calibration targets ------------- */
+    /* ------------- Wide 5×5 calibration ------------- */
     const xs = [0.02, 0.25, 0.50, 0.75, 0.98];
     const ys = [0.02, 0.25, 0.50, 0.75, 0.98];
     const targetPts = [];
@@ -725,6 +728,7 @@
     async function runCalibration() {
       buildCalibDots();
       const frameRect = calibFrame.getBoundingClientRect();
+
       const frameToScreen = (fx, fy) => ({
         x: (frameRect.left + frameRect.width  * fx) / window.innerWidth,
         y: (frameRect.top  + frameRect.height * fy) / window.innerHeight

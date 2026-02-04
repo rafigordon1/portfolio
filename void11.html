@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Aurora Vortex — Reactive Visual</title>
+  <title>Chromatic Caustics — Reactive Visual</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
@@ -243,8 +243,8 @@
       density: 1.25,
       hueShift: 180,
       speed: 1.0,
-      glowIntensity: 0.55,
-      saturation: 0.2,
+      glowIntensity: 0.8,
+      saturation: 0.35,
       mouseRepulsion: true,
       repulsionStrength: 2.0,
       twinkleIntensity: 0.35,
@@ -274,7 +274,7 @@
     // y' = b1*x + b2*y + b3*x^2 + b4*x*y + b5*y^2 + b6
     let c = { a1:1,a2:0,a3:0,a4:0,a5:0,a6:0, b1:0,b2:1,b3:0,b4:0,b5:0,b6:0 };
 
-    /* ---------------- Shaders (CRYSTAL BLOOM — NEW VISUAL) ---------------- */
+    /* ---------------- Shaders (Chromatic Caustics) ---------------- */
     const vertexShader = `
       attribute vec2 uv;
       attribute vec2 position;
@@ -285,8 +285,7 @@
       }
     `;
 
-    // A prismatic, crystalline field built from animated Voronoi cells, radial rings,
-    // and kaleidoscopic hue shifts. Fast, bright, and very reactive.
+    // New visual: refractive caustic waves + neon edges, domain-warped and eye/hand responsive.
     const fragmentShader = `
       precision highp float;
       varying vec2 vUv;
@@ -312,20 +311,19 @@
 
       #define TAU 6.28318530718
 
-      // Hash utilities
       float hash21(vec2 p){
         p = fract(p*vec2(234.34, 489.23));
         p += dot(p, p+34.23);
         return fract(p.x*p.y);
       }
-      vec2 hash22(vec2 p){
-        return fract(vec2(
-          sin(dot(p, vec2(127.1, 311.7))),
-          sin(dot(p, vec2(269.5, 183.3)))
-        )*43758.5453);
+
+      vec3 hsv2rgb(vec3 c){
+        vec4 K = vec4(1., 2./3., 1./3., 3.);
+        vec3 p = abs(fract(c.xxx+K.xyz)*6.-K.www);
+        return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
       }
 
-      // Smooth value noise
+      // Simple value noise (fast)
       float vnoise(vec2 p){
         vec2 i = floor(p), f = fract(p);
         float a = hash21(i);
@@ -336,38 +334,41 @@
         return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
       }
 
-      // Voronoi edge metric (F2-F1) for crisp crystal lines
-      float voronoiEdge(vec2 x, float t){
-        vec2 n = floor(x);
-        vec2 f = fract(x);
-        float md1 = 1e9; float md2 = 1e9;
-        for(int j=-1;j<=1;j++){
-          for(int i=-1;i<=1;i++){
-            vec2 g = vec2(float(i), float(j));
-            // animated jitter inside each cell (uses uStarClock)
-            vec2 o = hash22(n+g);
-            o = 0.5 + 0.5*sin((o*TAU) + t + (n.x+n.y));
-            vec2 r = g + o - f;
-            float d = dot(r,r);
-            if(d < md1){ md2 = md1; md1 = d; }
-            else if(d < md2){ md2 = d; }
-          }
-        }
-        return md2 - md1; // small near edges
+      // Domain warp for liquid effect
+      vec2 warp(vec2 p, float t){
+        float k1 = 0.65;
+        float k2 = 0.35;
+        vec2 q = p;
+        q += k1*vec2(vnoise(p*1.7 + vec2(0.0, t*0.35)),
+                     vnoise(p*1.7 + vec2(t*0.31, 1.0)));
+        q += k2*vec2(vnoise(q*2.3 - vec2(t*0.27, 2.0)),
+                     vnoise(q*2.1 + vec2(3.0, -t*0.22)));
+        return q;
       }
 
-      vec3 hsv2rgb(vec3 c){
-        vec4 K = vec4(1., 2./3., 1./3., 3.);
-        vec3 p = abs(fract(c.xxx+K.xyz)*6.-K.www);
-        return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
+      // Sum of oriented ripples that form bright caustic ridges
+      float caustic(vec2 p, float t){
+        float s = 0.0;
+        // Three moving ripple families
+        vec2 d1 = normalize(vec2( 0.9,  0.4));
+        vec2 d2 = normalize(vec2(-0.6,  0.8));
+        vec2 d3 = normalize(vec2( 0.2, -1.0));
+        float f1 = sin(dot(p, d1)*7.0 + t*1.3);
+        float f2 = sin(dot(p, d2)*9.5 - t*1.1);
+        float f3 = sin(dot(p, d3)*6.2 + t*0.9 + sin(t*0.37)*2.0);
+        // Radial ring interference
+        float rr = sin(length(p)*8.0 - t*1.2);
+        s = f1 + f2 + f3 + rr;
+        // Ridge sharpen (absolute, then exponent)
+        float ridged = pow(1.0 - abs(s)/4.0, 6.0);
+        return clamp(ridged, 0.0, 1.0);
       }
 
       void main(){
-        // Pixel coords centered around focal
         vec2 focalPx = uFocal*uResolution.xy;
         vec2 uv = (vUv*uResolution.xy - focalPx) / max(uResolution.y, 1.);
 
-        // Auto-center push or interactive repulse/attract
+        // Auto-center outward push or interactive mouse repulsion
         if(uAutoCenter>0.){
           float d=length(uv); vec2 dir=normalize(uv+1e-5);
           uv += dir*(uAutoCenter/(d+0.1))*0.05;
@@ -380,55 +381,55 @@
           uv += m * 0.10 * uMouseActive;
         }
 
-        // Global rotation (keeps the field lively)
+        // Global rotation + manual rotation vector
         float ang = uTime*uRotSpeed;
         mat2 R = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
         uv = R*uv;
         uv = mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x)*uv;
 
-        // Domain scale & animated warp
-        float t = uTime * (0.4 + 0.6*uSpeed);
-        float sc = 2.2*uDensity + 0.6;
-        vec2 p = uv*sc;
+        // Scale by density and speed time
+        float t = uTime * (0.6 + uSpeed*0.8);
+        vec2 p = uv * (2.3*uDensity);
 
-        // Gentle liquid refraction via two layers of noise
-        vec2 warp = vec2(vnoise(p*0.9 + t*0.35), vnoise(p*1.1 - t*0.28));
-        warp = (warp - 0.5) * (0.65 + 0.6*uTwinkle);
-        p += warp;
+        // Domain warp to get fluid refraction look
+        vec2 pw = warp(p, t);
 
-        // Crystalline edges
-        float edge = voronoiEdge(p*1.85 + t*0.25, uStarClock*6.0 + t*0.5);
-        float crystal = smoothstep(0.02, 0.0, edge); // bright at edges
+        // Layered caustic fields with different scales
+        float c1 = caustic(pw*1.0, t);
+        float c2 = caustic(pw*1.7 + vec2(0.2, -0.3), t*0.85);
+        float c3 = caustic(pw*2.4 - vec2(0.4, 0.1), t*1.12);
 
-        // Radial ring flowers (kaleidoscopic feel)
-        float r = length(uv);
-        float a = atan(uv.y, uv.x);
-        float petals = 6.0 + 6.0*clamp(uDensity, 0.25, 3.0)/3.0; // reacts to density
-        float rings = 0.5 + 0.5*sin( (r*10.0 + 3.0*sin(a*petals)) - t*2.0 );
+        float field = c1*0.6 + c2*0.9 + c3*0.7;
 
-        // Twinkle speckle
-        float tw = vnoise(p*4.0 + t*1.2);
-        float sparkle = smoothstep(0.75, 1.0, tw) * uTwinkle;
+        // Edge glow accent by gradient magnitude proxy
+        float edge = smoothstep(0.35, 0.95, c2 + c3*0.5);
 
-        // Base brightness & color
-        float base = 0.28 + 0.55*rings + 0.65*crystal + 0.25*sparkle;
-        base = clamp(base, 0.0, 1.4);
+        // Starry micro-sparkles (camera/eye reactive)
+        float tw = uTwinkle;
+        float sp = 0.0;
+        if (tw > 0.0){
+          float h1 = vnoise(pw*5.5 + t*0.8);
+          float h2 = vnoise(pw*7.3 - t*0.6 + 10.0);
+          sp = smoothstep(0.86, 0.995, max(h1, h2)) * tw;
+        }
 
-        float hue = fract(uHueShift/360. + 0.12*rings + 0.18*crystal + 0.03*sin(t + vnoise(p*1.7)));
-        float sat = clamp(uSat + 0.35*crystal + 0.15*rings, 0.0, 1.0);
-        float val = clamp(0.35 + 0.75*base, 0.0, 1.0);
+        // Color: sweep hue with field + user shift; saturation from UI
+        float hue = fract(uHueShift/360.0 + field*0.22 + 0.06*sin(t*0.17) + 0.03*sp);
+        float sat = clamp(uSat + 0.25*edge, 0.0, 1.0);
+        float val = clamp(0.18 + 1.35*field + 0.6*edge + 0.5*sp, 0.0, 3.0);
+
+        // Convert and apply "glow" as exposure
         vec3 col = hsv2rgb(vec3(hue, sat, val));
+        col *= (0.6 + 1.6*uGlow);
 
-        // Center glow falloff (nice depth cue)
-        float glow = smoothstep(1.8, 0.1, length(uv)) * uGlow;
-        col += col * (0.25 + glow*0.85);
+        // Soft vignette to frame
+        float vign = smoothstep(1.8, 0.25, length(uv));
+        col *= (1.0 - 0.28*vign);
 
-        // Subtle vignette to frame
-        float v = smoothstep(1.9, 0.2, length(uv))*0.22;
-        col *= (1.0 - v);
-
+        // Optional transparency (alpha from luminance)
+        float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
         if(uTransparent){
-          float alpha = smoothstep(0.0, 0.45, dot(col, vec3(0.333)));
+          float alpha = smoothstep(0.05, 0.45, luma);
           gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
         } else {
           gl_FragColor = vec4(col, 1.0);
@@ -498,7 +499,7 @@
 
       const onPointerMove = (clientX, clientY) => {
         const rect = host.getBoundingClientRect();
-        const x = (clientX - rect.left) / rect.width;         // 1:1 mapping
+        const x = (clientX - rect.left) / rect.width;
         const y = (clientY - rect.top)  / rect.height;
         targetMouse.x = clamp01(x);
         targetMouse.y = clamp01(y);
@@ -524,7 +525,7 @@
         targetMouse.y = routed.y;
         targetActive.v = routed.active;
 
-        // Adjustable smoothing (accuracy-first)
+        // Adjustable smoothing
         const k = params.smoothing; // 0.02..0.35
         smoothMouse.x += (targetMouse.x - smoothMouse.x) * k;
         smoothMouse.y += (targetMouse.y - smoothMouse.y) * k;
@@ -555,7 +556,7 @@
 
         renderer.render({ scene: mesh });
 
-        // Pixel-accurate cursor dot (mapped 1:1 to input space)
+        // Pixel-accurate cursor dot
         const rect = host.getBoundingClientRect();
         const px = smoothMouse.x * rect.width;
         const py = smoothMouse.y * rect.height;
@@ -782,7 +783,6 @@
           const mx = c.a1*x + c.a2*y + c.a3*x*x + c.a4*x*y + c.a5*y*y + c.a6;
           const my = c.b1*x + c.b2*y + c.b3*x*x + c.b4*x*y + c.b5*y*y + c.b6;
 
-          // mirrored webcam expected: X direct, Y direct (no inversion here; we calibrated in screen space)
           eye.x = clamp01(mx);
           eye.y = clamp01(my);
           eye.conf = eyeRaw.conf;
@@ -925,7 +925,7 @@
         await stopWebgazer();
         await startCamera();
         setStatus("Hand");
-        noteEl.textContent = "Raise your index fingertip to steer the vortex.";
+        noteEl.textContent = "Raise your index fingertip to steer the field.";
         return;
       }
       if (src === "body") {
@@ -934,7 +934,7 @@
         await stopWebgazer();
         await startCamera();
         setStatus("Body");
-        noteEl.textContent = "Move your head/arms to steer the vortex.";
+        noteEl.textContent = "Move your head/arms to steer the field.";
         return;
       }
       if (src === "eye") {

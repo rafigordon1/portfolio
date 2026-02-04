@@ -107,7 +107,11 @@
       .grid { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 400px) {
-      .grid { grid-template-columns: 1fr; }
+      .grid { 
+        grid-template-columns: 1fr;
+        /* Significantly increased spacing at the bottom for mobile */
+        padding-bottom: 250px; 
+      }
     }
   </style>
 </head>
@@ -132,9 +136,6 @@
     <a href="void12.html" class="void-link" data-index="12"><span>VOID 12</span></a>
     
     <a href="void13.html" class="void-link" data-index="13"><span>VOID 13</span></a>
-    <a href="void14.html" class="void-link" data-index="14"><span>VOID 14</span></a>
-    <a href="void15.html" class="void-link" data-index="15"><span>VOID 15</span></a>
-    <a href="void16.html" class="void-link" data-index="16"><span>VOID 16</span></a>
   </div>
 
 </body>

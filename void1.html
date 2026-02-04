@@ -1,310 +1,386 @@
-Got it — here’s the full file with the cursor and visual moving **in the same direction**.
-I removed the old “camera ray steers toward mouse” bit (which creates opposite parallax) and instead **shift the field sampling by the mouse** so the texture itself tracks your pointer. Everything else stays the same.
-
-Just paste this whole thing:
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Aurora Vortex — bright mode (cursor in-sync)</title>
+  <title>Aurora Loom — Left Dock + Snappy Cursor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
+    :root {
+      --ink-0: #0a0b10;
+      --ink-1: #0f1020;
+      --ink-2: #12132a;
+      --accent-1: #8c5bff;
+      --accent-2: #00ffd5;
+      --glass: rgba(255,255,255,.06);
+      --glass-2: rgba(255,255,255,.12);
+      --line: rgba(255,255,255,.14);
+      --line-2: rgba(255,255,255,.25);
+      --txt: rgba(255,255,255,.95);
+      --muted: rgba(255,255,255,.78);
+    }
+    html, body { height: 100%; margin: 0; background: radial-gradient(1200px 800px at 70% -10%, #231b4d 0%, var(--ink-1) 40%, var(--ink-0) 100%); overflow: hidden; }
     .root { position: relative; width: 100%; height: 100%; }
-    #voidHost { position: absolute; inset: 0; overflow: hidden; border-radius: 12px; cursor: none; }
 
+    /* Canvas host */
+    #loomHost { position: absolute; inset: 0; overflow: hidden; border-radius: 18px; cursor: none; }
+    video#cam { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+
+    /* White cursor dot — tighter hover fidelity */
     .cursor-dot {
-      position: absolute; width: 10px; height: 10px; border-radius: 50%;
-      background: #fff; box-shadow: 0 0 18px rgba(255,255,255,.95), 0 0 2px rgba(255,255,255,1) inset;
-      pointer-events: none; z-index: 15; transform: translate(-50%,-50%); opacity: .95; transition: opacity .08s linear;
-      will-change: left, top, opacity;
+      position: absolute; width: 11px; height: 11px; border-radius: 50%;
+      background: radial-gradient(circle at 50% 50%, #fff 0 55%, rgba(255,255,255,.35) 70%, rgba(255,255,255,0) 80%);
+      filter: drop-shadow(0 0 18px rgba(255,255,255,.85)) drop-shadow(0 0 2px rgba(255,255,255,.9));
+      pointer-events: none; z-index: 15; transform: translate(-50%,-50%);
+      opacity: .95; transition: opacity .18s ease;
     }
 
+    /* LEFT dock: only pops out if hovering the toggle */
     .panel {
-      position: absolute; top: 12px; left: 12px; z-index: 20; color: #fff;
+      position: absolute; top: 16px; left: 16px; z-index: 20; color: var(--txt);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      user-select: none;
+      min-width: 280px; max-width: min(460px, 92vw);
     }
     .pill {
-      padding: 7px 12px; font-size: 12px; letter-spacing: .04em; border-radius: 999px;
-      backdrop-filter: blur(10px); background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.20));
-      border: 1px solid rgba(255,255,255,.16); cursor: default; transition: background 160ms ease, border 160ms ease;
-      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px; font-size: 12px; letter-spacing: .06em; border-radius: 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(0,0,0,.25));
+      border: 1px solid var(--line); cursor: default;
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      user-select: none;
     }
-    .panel:hover .pill { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(0,0,0,.26)); border-color: rgba(255,255,255,.24); }
-
     .drop {
-      position: absolute; top: 36px; left: 0; width: min(480px, 94vw);
+      position: relative;
       max-height: 0; overflow: hidden;
-      border-radius: 14px; background: rgba(10,10,12,.30); border: 1px solid rgba(255,255,255,.14);
-      backdrop-filter: blur(12px); padding: 0 14px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
-      transition: max-height 220ms ease, padding 220ms ease;
-      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent;
+      background: rgba(10,12,18,.45); backdrop-filter: blur(14px);
+      border: 1px solid var(--line); border-radius: 12px;
+      padding: 0; box-shadow: 0 24px 60px rgba(0,0,0,.45);
+      margin-top: 8px;
+      scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
+      transition: max-height 240ms ease, padding 240ms ease;
     }
-    .panel:hover .drop { max-height: 82vh; overflow: auto; padding: 12px 14px 16px; }
     .drop::-webkit-scrollbar { width: 10px; }
-    .drop::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 10px; }
-    .section { margin-top: 12px; }
+    .drop::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; }
+    /* Open only when pill triggered (via JS adds .open to .panel) */
+    .panel.open .drop { max-height: 76vh; overflow: auto; padding: 12px; }
+
+    .section { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--glass); }
     .section h4 {
-      margin: 8px 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; opacity: .9;
+      margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--muted);
       display: flex; align-items: center; gap: 8px;
     }
     .section h4::before {
-      content: ""; width: 6px; height: 6px; border-radius: 50%;
-      background: linear-gradient(90deg, #00d26a, #53a6ff); box-shadow: 0 0 10px rgba(83,166,255,.9);
+      content: ""; width: 7px; height: 7px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, var(--accent-2), var(--accent-1));
+      box-shadow: 0 0 10px var(--accent-1), 0 0 20px var(--accent-2);
     }
 
     .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .row {
-      display: grid; grid-template-columns: 160px 1fr 86px; align-items: center; gap: 8px;
-      padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+      display: grid; grid-template-columns: 120px 1fr 72px; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 10px; background: var(--glass-2); border: 1px solid var(--line);
     }
-    .row label { font-size: 12px; opacity: .92; }
+    .row label { font-size: 12px; color: var(--txt); }
     .val {
       justify-self: end; min-width: 52px; text-align: right; font-size: 11px; font-variant-numeric: tabular-nums;
-      padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+      padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.10); border: 1px solid var(--line);
+    }
+
+    .selectwrap {
+      position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center;
+      background: rgba(255,255,255,.08); border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px;
+    }
+    .selectwrap select {
+      width: 100%; font-size: 13px; color: var(--txt); background: transparent; border: none; outline: none;
+      appearance: none; -webkit-appearance: none; padding: 6px 28px 6px 6px;
+    }
+    .selectwrap:after { content: "▾"; color: var(--txt); margin-left: -20px; margin-right: 4px; pointer-events: none; }
+    .badge {
+      margin-left: 8px; font-size: 11px; padding: 4px 8px; border-radius: 999px;
+      background: rgba(255,255,255,.10); border: 1px solid var(--line);
     }
 
     input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; outline: none;
-      background: linear-gradient(90deg, rgba(255,255,255,.35), rgba(255,255,255,.12)); }
+      background: linear-gradient(90deg, rgba(255,255,255,.35), rgba(255,255,255,.1)); }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
       background: #fff; border: 1px solid rgba(0,0,0,.2); box-shadow: 0 1px 6px rgba(0,0,0,.5); }
     input[type="checkbox"] { transform: translateY(1px); }
+    .note { font-size: 11px; opacity: .80; line-height: 1.4; margin-top: 6px; }
+
+    /* Eye calibration overlay */
+    .overlay { position: absolute; inset: 0; z-index: 30; display: none; place-items: center;
+      background: rgba(5,7,12,.78); color: #fff; text-align: center; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .overlay.show { display: grid; }
+
+    .calib-wrap { position: relative; width: min(1600px, 96vw); }
+    .calib-card {
+      position: relative; z-index: 2;
+      border-radius: 14px; padding: 16px 18px; margin: 0 auto 14px;
+      background: rgba(0,0,0,.35); border: 1px solid var(--line); backdrop-filter: blur(10px);
+    }
+    .calib-card h2 { margin: 0 0 8px; font-size: 20px; letter-spacing: .02em; }
+    .calib-card .meta { font-size: 12px; opacity: .85; margin-bottom: 8px; }
+    .calib-card .foot { font-size: 12px; opacity: .8; margin-top: 8px; }
+    .btn {
+      display: inline-block; margin-top: 10px; padding: 10px 14px; border-radius: 999px;
+      background: rgba(255,255,255,.12); border: 1px solid var(--line); color: #fff; cursor: pointer;
+      transition: background .15s ease; font-size: 13px; letter-spacing: .02em;
+    }
+    .btn[disabled] { opacity: .55; cursor: default; }
+    .btn:hover:not([disabled]) { background: rgba(255,255,255,.2); }
+    .progress { font-size: 12px; opacity: .9; margin-top: 6px; }
+
+    .calib-frame {
+      position: relative;
+      width: 100%;
+      height: min(78vh, 860px);
+      margin: 0 auto;
+      border-radius: 16px;
+      border: 1px solid var(--line-2);
+      background: radial-gradient(800px 480px at 50% 0%, rgba(140,91,255,.12), rgba(0,0,0,.18) 50%);
+      box-shadow: inset 0 0 24px rgba(0,0,0,.5);
+      overflow: visible;
+    }
+    .targets { position: absolute; inset: 0; pointer-events: none; }
+    .t {
+      position: absolute; width: 18px; height: 18px; border-radius: 50%;
+      background: #e0f7fa; opacity: .95; border: 1px solid rgba(255,255,255,.9);
+      box-shadow: 0 0 18px rgba(255,255,255,.65); transform: translate(-50%, -50%);
+      transition: transform .08s ease, background .08s ease, box-shadow .08s ease;
+    }
+    .t.active { background: #00ffd5; box-shadow: 0 0 36px rgba(0,255,213,.95); transform: translate(-50%, -50%) scale(1.25); }
   </style>
 </head>
 <body>
   <div class="root">
-    <div id="voidHost"></div>
+    <div id="loomHost"></div>
     <div id="cursorDot" class="cursor-dot"></div>
+    <video id="cam" playsinline autoplay muted></video>
 
-    <div class="panel">
-      <div class="pill">⚙︎ Aurora Vortex — Bright</div>
-      <div class="drop">
+    <!-- Eye calibration overlay -->
+    <div id="eyeCalib" class="overlay">
+      <div class="calib-wrap">
+        <div class="calib-card">
+          <h2>Eye Tracking Calibration</h2>
+          <div class="meta">Aurora Loom • Quadratic map fit</div>
+          <div class="progress" id="calibProgress">Ready.</div>
+          <button id="eyeStartBtn" class="btn">Begin Calibration</button>
+          <div class="foot">Tip: sit ~50–70 cm from the screen with even lighting; keep head steady.</div>
+        </div>
+        <div class="calib-frame" id="calibFrame">
+          <div class="targets" id="calibTargets"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEFT pop-out panel -->
+    <div class="panel" id="panel">
+      <div class="pill" id="pill">⚙︎ Loom <span class="badge" id="statusVal">Idle</span></div>
+      <div class="drop" id="drop">
         <div class="section">
-          <h4>Quality / Performance</h4>
+          <h4>Input</h4>
           <div class="grid">
-            <div class="row"><label>Render Scale</label><input id="renderScale" type="range" min="0.6" max="1.0" step="0.05"/><div class="val" id="renderScaleVal"></div></div>
-            <div class="row"><label>FPS (est.)</label><div class="val" id="fpsVal">–</div><div></div></div>
+            <div class="row">
+              <label>Source</label>
+              <div class="selectwrap">
+                <select id="inputSource">
+                  <option value="mouse">Mouse</option>
+                  <option value="hand">Hand</option>
+                  <option value="body">Body</option>
+                  <option value="eye">Eye</option>
+                </select>
+                <span class="badge" id="statusMini">OK</span>
+              </div>
+            </div>
+            <div class="note">Hover ⚙︎ to open. Eye mode requires calibration.</div>
           </div>
         </div>
 
         <div class="section">
-          <h4>Color & Brightness</h4>
+          <h4>Field</h4>
           <div class="grid">
-            <div class="row"><label>Exposure</label><input id="exposure" type="range" min="0.5" max="6" step="0.05"/><div class="val" id="exposureVal"></div></div>
-            <div class="row"><label>Bloom Boost</label><input id="bloom" type="range" min="0" max="2.5" step="0.01"/><div class="val" id="bloomVal"></div></div>
-            <div class="row"><label>Gamma</label><input id="gamma" type="range" min="0.8" max="2.4" step="0.01"/><div class="val" id="gammaVal"></div></div>
+            <div class="row"><label>Density</label><input id="density" type="range" min="0.2" max="3" step="0.01"/><div class="val" id="densityVal"></div></div>
             <div class="row"><label>Hue Shift</label><input id="hueShift" type="range" min="0" max="360" step="1"/><div class="val" id="hueShiftVal"></div></div>
-            <div class="row"><label>Saturation</label><input id="saturation" type="range" min="0" max="1.4" step="0.01"/><div class="val" id="saturationVal"></div></div>
-            <div class="row"><label>Glow Weight</label><input id="glow" type="range" min="0" max="3" step="0.01"/><div class="val" id="glowVal"></div></div>
+            <div class="row"><label>Saturation</label><input id="saturation" type="range" min="0" max="1" step="0.01"/><div class="val" id="saturationVal"></div></div>
+            <div class="row"><label>Glow</label><input id="glow" type="range" min="0" max="1.5" step="0.01"/><div class="val" id="glowVal"></div></div>
             <div class="row"><label>Transparent</label><input id="transparent" type="checkbox"/><div></div></div>
           </div>
         </div>
 
         <div class="section">
-          <h4>Motion / Structure</h4>
+          <h4>Motion</h4>
           <div class="grid">
-            <div class="row"><label>Layer Density</label><input id="density" type="range" min="0.5" max="3" step="0.01"/><div class="val" id="densityVal"></div></div>
-            <div class="row"><label>Flow Speed</label><input id="speed" type="range" min="0" max="2" step="0.01"/><div class="val" id="speedVal"></div></div>
-            <div class="row"><label>Vortex</label><input id="vortex" type="range" min="0" max="2" step="0.01"/><div class="val" id="vortexVal"></div></div>
-            <div class="row"><label>Orbit (θ)</label><input id="theta" type="range" min="-3.1416" max="3.1416" step="0.0005"/><div class="val" id="thetaVal"></div></div>
-            <div class="row"><label>Parallax Follow</label><input id="parallax" type="range" min="0" max="1" step="0.01"/><div class="val" id="parallaxVal"></div></div>
+            <div class="row"><label>Global Speed</label><input id="speed" type="range" min="0" max="5" step="0.01"/><div class="val" id="speedVal"></div></div>
+            <div class="row"><label>Flow Speed</label><input id="starSpeed" type="range" min="0" max="5" step="0.01"/><div class="val" id="starSpeedVal"></div></div>
+            <div class="row"><label>Auto Rotate</label><input id="rotationSpeed" type="range" min="-2" max="2" step="0.001"/><div class="val" id="rotationSpeedVal"></div></div>
+            <div class="row"><label>Shimmer</label><input id="twinkle" type="range" min="0" max="1" step="0.01"/><div class="val" id="twinkleVal"></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Interaction</h4>
+          <div class="grid">
+            <div class="row"><label>Repulsion</label><input id="repulseOn" type="checkbox"/><div></div></div>
+            <div class="row"><label>Strength</label><input id="repulseStrength" type="range" min="0" max="6" step="0.05"/><div class="val" id="repulseStrengthVal"></div></div>
+            <div class="row"><label>Auto Center Push</label><input id="autoCenter" type="range" min="0" max="6" step="0.05"/><div class="val" id="autoCenterVal"></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Framing</h4>
+          <div class="grid">
+            <div class="row"><label>Focal X</label><input id="focalX" type="range" min="0" max="1" step="0.001"/><div class="val" id="focalXVal"></div></div>
+            <div class="row"><label>Focal Y</label><input id="focalY" type="range" min="0" max="1" step="0.001"/><div class="val" id="focalYVal"></div></div>
+            <div class="row"><label>Rotate (θ)</label><input id="theta" type="range" min="-3.1416" max="3.1416" step="0.0005"/><div class="val" id="thetaVal"></div></div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- OGL (WebGL1-safe shader) -->
+  <!-- OGL (WebGL) + tracking -->
   <script type="module">
-    import { Renderer, Program, Mesh, Triangle } from "https://cdn.skypack.dev/ogl";
+    import { Renderer, Program, Mesh, Color, Triangle } from "https://cdn.skypack.dev/ogl";
 
+    /* ---------------- Params ---------------- */
     const params = {
       focal: [0.5, 0.5],
-      rotation: [1.0, 0.0],   // [cos(θ), sin(θ)]
-      renderScale: Math.min(0.95, window.devicePixelRatio || 1),
-
-      // brightness stack
-      exposure: 2.8,
-      bloom: 1.2,
-      gamma: 1.2,
-
-      // color/shape
-      density: 1.6,
-      hueShift: 200,
-      saturation: 1.0,
-      glow: 1.6,
-
-      // motion
-      speed: 0.8,
-      vortex: 0.8,
-      parallax: 0.8,
-
-      transparent: true
+      rotation: [1.0, 0.0],
+      starSpeed: 0.8,
+      density: 1.15,
+      hueShift: 180,
+      speed: 1.1,
+      glowIntensity: 0.55,
+      saturation: 0.22,
+      mouseRepulsion: true,
+      repulsionStrength: 2.0,
+      twinkleIntensity: 0.35,
+      rotationSpeed: 0.05,
+      autoCenterRepulsion: 0.0,
+      transparent: true,
+      inputSource: "mouse"
     };
 
-    const host = document.getElementById("voidHost");
+    /* ---------------- DOM ---------------- */
+    const host = document.getElementById("loomHost");
+    const statusEl = document.getElementById("statusVal");
+    const statusMini = document.getElementById("statusMini");
     const cursorDot = document.getElementById("cursorDot");
-    const fpsVal = document.getElementById("fpsVal");
+    const videoEl = document.getElementById("cam");
+    const panel = document.getElementById("panel");
+    const pill = document.getElementById("pill");
+    const drop = document.getElementById("drop");
 
+    const eyeOverlay   = document.getElementById("eyeCalib");
+    const eyeStartBtn  = document.getElementById("eyeStartBtn");
+    const calibFrame   = document.getElementById("calibFrame");
+    const calibTargets = document.getElementById("calibTargets");
+    const calibProgress= document.getElementById("calibProgress");
+
+    /* --------- Eye calibration (quadratic) state --------- */
+    let eyeCalibrated = false;
+    let c = { a1:1,a2:0,a3:0,a4:0,a5:0,a6:0, b1:0,b2:1,b3:0,b4:0,b5:0,b6:0 };
+
+    /* ---------------- Shaders ---------------- */
     const vertexShader = `
-      attribute vec2 position;
-      attribute vec2 uv;
-      varying vec2 vUv;
-      void main(){
-        vUv = uv;
-        gl_Position = vec4(position, 0.0, 1.0);
-      }
+      attribute vec2 uv; attribute vec2 position; varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = vec4(position, 0.0, 1.0); }
     `;
-
     const fragmentShader = `
-      precision mediump float;
-      varying vec2 vUv;
+      precision highp float; varying vec2 vUv;
+      uniform float uTime; uniform vec3 uResolution; uniform vec2 uFocal; uniform vec2 uRotation;
+      uniform float uStarClock; uniform float uDensity; uniform float uHueShift; uniform float uSpeed;
+      uniform vec2 uMouse; uniform float uGlow; uniform float uSat; uniform bool uMouseRepulse;
+      uniform float uTwinkle; uniform float uRotSpeed; uniform float uRepulse; uniform float uMouseActive;
+      uniform float uAutoCenter; uniform bool uTransparent;
 
-      uniform float uTime;
-      uniform vec3  uResolution;
-      uniform vec2  uFocal;
-      uniform vec2  uRotation;
-      uniform vec2  uMouse;
-
-      uniform float uDensity;
-      uniform float uHueShift;
-      uniform float uSat;
-      uniform float uGlow;
-      uniform float uSpeed;
-      uniform float uVortex;
-      uniform float uParallax;
-
-      uniform float uExposure;
-      uniform float uBloom;
-      uniform float uGamma;
-      uniform float uTransparent;
-
-      #define LAYERS 6
-      #define PI 3.14159265359
-
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
-      float noise(vec2 p){
-        vec2 i = floor(p), f = fract(p);
-        float a = hash(i + vec2(0.0,0.0));
-        float b = hash(i + vec2(1.0,0.0));
-        float c = hash(i + vec2(0.0,1.0));
-        float d = hash(i + vec2(1.0,1.0));
-        vec2 u = f*f*(3.0-2.0*f);
+      #define TAU 6.28318530718
+      float hash21(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p,p+34.45); return fract(p.x*p.y); }
+      float noise(vec2 x){ vec2 i=floor(x), f=fract(x); vec2 u=f*f*(3.-2.*f);
+        float a=hash21(i), b=hash21(i+vec2(1,0)), c=hash21(i+vec2(0,1)), d=hash21(i+vec2(1,1));
         return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
       }
-      float fbm(vec2 p){
-        float s=0.0, a=0.65;
-        for(int i=0;i<5;i++){
-          s += a * noise(p);
-          p = p*1.9 + 13.1;
-          a *= 0.52;
-        }
-        return s;
-      }
-      vec3 hsv2rgb(vec3 c){
-        vec4 K=vec4(1., 2./3., 1./3., 3.);
-        vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www);
-        return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
+      float fbm(vec2 x){ float s=0., a=.5; mat2 R=mat2(0.8,0.6,-0.6,0.8);
+        for(int i=0;i<6;i++){ s+=a*noise(x); x=R*x*2.02; a*=.55; } return s; }
+      vec2 rot2(vec2 p,float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c)*p; }
+      vec3 hsv2rgb(vec3 c){ vec4 K=vec4(1.,2./3.,1./3.,3.); vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www); return c.z*mix(K.xxx, clamp(p-K.xxx,0.,1.), c.y); }
+
+      vec2 hexId(vec2 p){
+        const vec2 k = vec2(1.0, 1.7320508);
+        p = vec2(p.x*2./3., (p.x*1./3. + p.y)/k.y)*k;
+        vec2 i = floor(p + .5);
+        vec2 f = p - i;
+        float d = max(abs(dot(f,vec2(1.,0.))), abs(dot(f,vec2(.5,.8660254))));
+        return vec2(d, hash21(i));
       }
 
       void main(){
         vec2 res = uResolution.xy;
-        vec2 focalPx = uFocal * res;
-        vec2 uv = (vUv * res - focalPx) / max(res.y, 1.0);
+        vec2 focalPx = uFocal*res;
+        vec2 uv = (vUv*res - focalPx)/max(res.y,1.);
+        uv = mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x) * uv;
+        uv = rot2(uv, uTime*uRotSpeed);
 
-        // orbit rotation
-        mat2 R = mat2(uRotation.x, -uRotation.y, uRotation.y, uRotation.x);
-        uv = R * uv;
+        vec2 m = (uMouse*res - focalPx)/max(res.y,1.);
+        float md = max(length(uv - m), 1e-3);
+        vec2 dir = normalize(uv - m);
+        if(uAutoCenter>0.){ uv += normalize(uv) * (uAutoCenter/(length(uv)+.001)) * 0.045; }
+        if(uMouseRepulse){ uv += dir * (uRepulse/md) * 0.045 * uMouseActive; } else { uv -= dir * 0.02 * uMouseActive; }
 
-        // mouse in same space (origin at focal)
-        vec2 mp = (uMouse * res - focalPx) / max(res.y, 1.0);
+        float scale = mix(10., 40., clamp(uDensity/3., 0., 1.));
+        vec2 hx = hexId(uv*scale);
+        float loom = smoothstep(0.65, 0.0, hx.x);
+        float glint = pow(sin((hx.x + uTime*uSpeed*0.35 + hx.y*2.0)*TAU)*0.5+0.5, 6.);
+        float shimmer = mix(0.2, 1.0, uTwinkle);
+        float loomLight = loom*shimmer + glint*0.6*shimmer;
 
-        vec3 ro = vec3(0.0, 0.0, -1.25);
-        vec3 rd = normalize(vec3(uv, 1.6));
+        vec2 flow = uv;
+        float t = uTime * (0.4 + uSpeed*0.2) + uStarClock*2.0;
+        flow += rot2(vec2(fbm(uv*1.25 + t*0.07), fbm(uv*1.25 - t*0.06)), 0.5);
+        float s1 = fbm(flow*1.8 + vec2(0.0, t*0.15));
+        float s2 = fbm(rot2(flow,1.2)*2.8 - vec2(t*0.12, 0.0));
+        float ribbons = smoothstep(0.45, 0.9, s1) * 0.75 + smoothstep(0.5, 0.95, s2) * 0.65;
 
-        float t = uTime * (0.5 + 0.7*uSpeed);
-        float sv = uVortex * 0.32 * sin(t*0.42);
-        mat2 S = mat2(cos(sv), -sin(sv), sin(sv), cos(sv));
-        rd.xy = S * rd.xy;
+        float hue = fract(uHueShift/360. + 0.05*ribbons + 0.08*fbm(uv*0.8 + t*0.05));
+        float sat = clamp(0.25 + 0.75*uSat, 0., 1.);
+        float val = clamp(0.25 + 0.85*ribbons + 0.35*loomLight, 0., 1.);
+        vec3 aurora = hsv2rgb(vec3(hue, sat, val));
+        float veins = smoothstep(0.55, 0.95, ribbons) + loomLight*0.8;
+        vec3 col = aurora + aurora * (veins * (0.6 + clamp(uGlow,0.,1.5)*1.6));
+        col *= smoothstep(1.35, 0.1, length(uv)*0.55);
 
-        vec3 col = vec3(0.0);
-        float alpha = 0.0;
-
-        // ------------------------------------------------------
-        // IMPORTANT CHANGE: shift sampling by +mp so the visual
-        // follows the cursor in the SAME direction.
-        // ------------------------------------------------------
-        for(int i=0;i<LAYERS;i++){
-          float fi = float(i);
-          float depth = mix(0.18, 2.4, fi / float(LAYERS-1));
-          vec3 p3 = ro + rd * depth;
-
-          vec2 p = p3.xy;
-          float ang = atan(p.y, p.x) + 0.55 * sin(t + fi*0.66);
-          float rad = length(p);
-          p = vec2(cos(ang), sin(ang)) * rad;
-
-          float sc = 1.3 + 0.7*uDensity;
-          // add positive displacement toward mouse
-          vec2 q = p * sc + vec2(0.0, t*0.55 + fi*0.4) + mp * (0.9 * uParallax);
-
-          float n = fbm(q);
-          float fil = smoothstep(0.45, 0.92, n + 0.18*sin(6.0*rad - t*1.6));
-
-          float a = fil * mix(0.10, 0.28, 1.0 - fi/float(LAYERS-1));
-          float g = smoothstep(0.55, 0.96, n) * (0.45 + 0.55*uBloom);
-
-          float hue = fract(uHueShift/360.0 + 0.09*fi + 0.10*n);
-          float val = clamp(fil + g*(0.8+0.6*uGlow), 0.0, 1.5);
-          vec3 base = hsv2rgb(vec3(hue, clamp(uSat,0.,1.4), val));
-          base += vec3(0.35, 0.55, 1.0) * g * (0.4 + 0.6*uGlow) * (0.35 + 0.65*uBloom);
-
-          col = mix(col, base, a);
-          alpha = clamp(alpha + a + g*0.12, 0.0, 1.0);
+        if(uTransparent){
+          float alpha = pow(clamp(max(max(col.r,col.g),col.b), 0., 1.), 0.75);
+          gl_FragColor = vec4(col, alpha);
+        } else {
+          gl_FragColor = vec4(col, 1.0);
         }
-
-        float vig = mix(1.0, smoothstep(1.25, 0.05, length(uv)), 0.55);
-        col *= vig;
-
-        col *= uExposure;
-        col = pow(max(col, 0.0), vec3(1.0 / max(uGamma, 0.01)));
-        col = col / (1.0 + 0.35*col);
-
-        vec4 opaque = vec4(col, 1.0);
-        vec4 trans  = vec4(col, alpha);
-        gl_FragColor = mix(opaque, trans, uTransparent);
       }
     `;
 
+    /* ---------------- GL setup ---------------- */
     let renderer, gl, program, mesh, rafId;
-    const mouse = { x: 0.5, y: 0.5, sx: 0.5, sy: 0.5 };
-    let currentDpr = Math.max(0.6, Math.min(params.renderScale, (window.devicePixelRatio||1)));
-    const perf = { frames: 0, last: performance.now(), fps: 60 };
+    const targetMouse = { x: 0.5, y: 0.5 };
+    const smoothMouse = { x: 0.5, y: 0.5 };
+    const targetActive = { v: 0.0 };
+    const smoothActive = { v: 0.0 };
+
+    /* Eye-mode cursor policy */
+    let lastPointerTs = 0;
 
     function initRenderer() {
-      renderer = new Renderer({
-        alpha: true,
-        premultipliedAlpha: false,
-        antialias: true,
-        dpr: currentDpr
-      });
+      renderer = new Renderer({ alpha: params.transparent, premultipliedAlpha: false, antialias: true });
       gl = renderer.gl;
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.clearColor(0,0,0,0);
+      if (params.transparent) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.clearColor(0,0,0,0); }
+      else { gl.clearColor(0,0,0,1); }
 
       function resize() {
         const w = host.clientWidth, h = host.clientHeight;
-        renderer.dpr = currentDpr;
         renderer.setSize(w, h);
         if (program) {
-          program.uniforms.uResolution.value = new Float32Array([gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height, 1)]);
+          program.uniforms.uResolution.value = new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height, 1));
         }
       }
-      window.addEventListener("resize", resize, { passive: true });
+      window.addEventListener("resize", resize);
       resize();
 
       const geometry = new Triangle(gl);
@@ -313,156 +389,401 @@ Just paste this whole thing:
         fragment: fragmentShader,
         uniforms: {
           uTime: { value: 0 },
-          uResolution: { value: new Float32Array([gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height,1)]) },
+          uResolution: { value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height,1)) },
           uFocal: { value: new Float32Array(params.focal) },
           uRotation: { value: new Float32Array(params.rotation) },
-          uMouse: { value: new Float32Array([mouse.sx, mouse.sy]) },
-
+          uStarClock: { value: 0 },
           uDensity: { value: params.density },
           uHueShift: { value: params.hueShift },
-          uSat: { value: params.saturation },
-          uGlow: { value: params.glow },
           uSpeed: { value: params.speed },
-          uVortex: { value: params.vortex },
-          uParallax: { value: params.parallax },
-
-          uExposure: { value: params.exposure },
-          uBloom: { value: params.bloom },
-          uGamma: { value: params.gamma },
-          uTransparent: { value: params.transparent ? 1.0 : 0.0 }
+          uMouse: { value: new Float32Array([smoothMouse.x, smoothMouse.y]) },
+          uGlow: { value: params.glowIntensity },
+          uSat: { value: params.saturation },
+          uMouseRepulse: { value: params.mouseRepulsion },
+          uTwinkle: { value: params.twinkleIntensity },
+          uRotSpeed: { value: params.rotationSpeed },
+          uRepulse: { value: params.repulsionStrength },
+          uMouseActive: { value: 0.0 },
+          uAutoCenter: { value: params.autoCenterRepulsion },
+          uTransparent: { value: params.transparent }
         }
       });
 
       mesh = new Mesh(gl, { geometry, program });
       host.appendChild(gl.canvas);
 
+      /* ---------- Pointer: make white dot match mouse exactly in mouse mode ---------- */
       const onPointerMove = (clientX, clientY) => {
         const rect = host.getBoundingClientRect();
         const x = (clientX - rect.left) / rect.width;
         const y = 1.0 - (clientY - rect.top) / rect.height;
-        mouse.x = Math.max(0, Math.min(1, x));
-        mouse.y = Math.max(0, Math.min(1, y));
+        const cx = clamp01(x), cy = clamp01(y);
+
+        targetMouse.x = cx;
+        targetMouse.y = cy;
+        targetActive.v = 1.0;
+        lastPointerTs = performance.now();
+
+        // No smoothing lag in mouse mode for pixel-accurate cursor
+        if (params.inputSource === "mouse") {
+          smoothMouse.x = cx;
+          smoothMouse.y = cy;
+          smoothActive.v = 1.0;
+        }
+        // Snap the visual dot immediately (UI feedback), independent of render loop
+        const px = cx * rect.width;
+        const py = (1 - cy) * rect.height;
+        cursorDot.style.left = `${px}px`;
+        cursorDot.style.top  = `${py}px`;
       };
-      window.addEventListener("mousemove", (e) => onPointerMove(e.clientX, e.clientY), { passive: true });
+
+      host.addEventListener("mousemove", (e) => onPointerMove(e.clientX, e.clientY));
+      host.addEventListener("mouseleave", () => { targetActive.v = 0.0; });
       host.addEventListener("touchmove", (e) => { const t = e.touches[0]; if (t) onPointerMove(t.clientX, t.clientY); }, { passive: true });
+      host.addEventListener("touchend", () => { targetActive.v = 0.0; });
 
       const loop = (t) => {
         rafId = requestAnimationFrame(loop);
         const timeSec = t * 0.001;
 
-        // FPS feedback & auto DPR
-        perf.frames++;
-        const now = performance.now();
-        if (now - perf.last >= 500) {
-          perf.fps = Math.round((perf.frames * 1000) / (now - perf.last));
-          perf.frames = 0; perf.last = now;
-          fpsVal.textContent = `${perf.fps}`;
-          if (perf.fps < 48 && currentDpr > 0.7) { currentDpr = Math.max(0.7, currentDpr - 0.05); rebuildRenderer(); }
-          else if (perf.fps > 58 && currentDpr < params.renderScale) { currentDpr = Math.min(params.renderScale, currentDpr + 0.05); rebuildRenderer(); }
-          document.getElementById("renderScale").value = currentDpr;
-          document.getElementById("renderScaleVal").textContent = currentDpr.toFixed(2) + "×";
-        }
+        program.uniforms.uTime.value = timeSec;
+        program.uniforms.uStarClock.value = (timeSec * params.starSpeed) / 10.0;
 
-        // smoothing
-        const k = 0.35;
-        mouse.sx += (mouse.x - mouse.sx) * k;
-        mouse.sy += (mouse.y - mouse.sy) * k;
+        const routed = routeInput();
 
-        // uniforms
-        program.uniforms.uTime.value = timeSec * (0.6 + params.speed*0.9);
-        program.uniforms.uMouse.value[0] = mouse.sx;
-        program.uniforms.uMouse.value[1] = mouse.sy;
+        // For non-mouse sources, keep graceful smoothing
+        const k = (params.inputSource === "mouse") ? 1.0 : 0.06;
+        targetMouse.x = routed.x;
+        targetMouse.y = routed.y;
+        targetActive.v = routed.active;
 
+        smoothMouse.x += (targetMouse.x - smoothMouse.x) * k;
+        smoothMouse.y += (targetMouse.y - smoothMouse.y) * k;
+        smoothActive.v += (targetActive.v - smoothActive.v) * k;
+
+        program.uniforms.uMouse.value[0] = smoothMouse.x;
+        program.uniforms.uMouse.value[1] = smoothMouse.y;
+        program.uniforms.uMouseActive.value = smoothActive.v;
         program.uniforms.uFocal.value[0] = params.focal[0];
         program.uniforms.uFocal.value[1] = params.focal[1];
         program.uniforms.uRotation.value[0] = params.rotation[0];
         program.uniforms.uRotation.value[1] = params.rotation[1];
-
         program.uniforms.uDensity.value = params.density;
         program.uniforms.uHueShift.value = params.hueShift;
+        program.uniforms.uSpeed.value = params.speed;
+        program.uniforms.uGlow.value = params.glowIntensity;
         program.uniforms.uSat.value = params.saturation;
-        program.uniforms.uGlow.value = params.glow;
-        program.uniforms.uVortex.value = params.vortex;
-        program.uniforms.uParallax.value = params.parallax;
-
-        program.uniforms.uExposure.value = params.exposure;
-        program.uniforms.uBloom.value = params.bloom;
-        program.uniforms.uGamma.value = params.gamma;
+        program.uniforms.uMouseRepulse.value = params.mouseRepulsion;
+        program.uniforms.uTwinkle.value = params.twinkleIntensity;
+        program.uniforms.uRotSpeed.value = params.rotationSpeed;
+        program.uniforms.uRepulse.value = params.repulsionStrength;
+        program.uniforms.uAutoCenter.value = params.autoCenterRepulsion;
+        program.uniforms.uTransparent.value = params.transparent;
 
         renderer.render({ scene: mesh });
 
-        // UI white dot (same space as uMouse)
-        const rect = host.getBoundingClientRect();
-        const px = mouse.sx * rect.width;
-        const py = (1 - mouse.sy) * rect.height;
-        cursorDot.style.left = `${px}px`;
-        cursorDot.style.top  = `${py}px`;
+        // Cursor visibility
+        if (params.inputSource === "eye") {
+          const idle = performance.now() - lastPointerTs;
+          cursorDot.style.opacity = idle < 1000 ? "0.95" : "0";
+        } else {
+          cursorDot.style.opacity = smoothActive.v > 0.02 ? "0.95" : "0.55";
+        }
       };
       rafId = requestAnimationFrame(loop);
     }
 
-    function rebuildRenderer() {
+    function rebuildTransparency() {
       cancelAnimationFrame(rafId);
       try { gl && gl.canvas && gl.canvas.parentNode === host && host.removeChild(gl.canvas); } catch {}
+      gl?.getExtension("WEBGL_lose_CONTEXT")?.loseContext?.();
       initRenderer();
     }
 
+    /* ---------------- Input routing & trackers ---------------- */
+    const clamp01 = (v) => Math.min(1, Math.max(0, v));
+    const eye = { x: 0.5, y: 0.5, conf: 0, ready: false };
+    const eyeRaw = { x: 0.5, y: 0.5, conf: 0, ready: false };
+    const hand = { x: 0.5, y: 0.5, conf: 0, ready: false };
+    const body = { x: 0.5, y: 0.5, conf: 0, ready: false };
+
+    function routeInput() {
+      switch (params.inputSource) {
+        case "eye":
+          if (!eyeCalibrated) return { x: smoothMouse.x, y: smoothMouse.y, active: 0.0 };
+          return eye.ready ? { x: eye.x, y: eye.y, active: Math.max(0.2, eye.conf) }
+                           : { x: smoothMouse.x, y: smoothMouse.y, active: 0.2 };
+        case "hand":
+          return hand.ready ? { x: hand.x, y: hand.y, active: Math.max(0.3, hand.conf) }
+                            : { x: smoothMouse.x, y: smoothMouse.y, active: 0.2 };
+        case "body":
+          return body.ready ? { x: body.x, y: body.y, active: Math.max(0.3, body.conf) }
+                            : { x: smoothMouse.x, y: smoothMouse.y, active: 0.2 };
+        default:
+          return { x: smoothMouse.x, y: smoothMouse.y, active: 1.0 };
+      }
+    }
+
+    /* ---------------- UI ---------------- */
     (function initUI(){
+      // Hover logic: only pop out if hovering the toggle (pill). Keep open while inside panel.
+      const openPanel = () => panel.classList.add('open');
+      const closePanel = (e) => {
+        // close when leaving the whole panel
+        if (!panel.contains(e.relatedTarget)) panel.classList.remove('open');
+      };
+      pill.addEventListener('mouseenter', openPanel);
+      panel.addEventListener('mouseleave', closePanel);
+
+      const sel = document.getElementById("inputSource");
+      sel.value = params.inputSource;
+      sel.addEventListener("change", async () => { params.inputSource = sel.value; await activateSource(sel.value); });
+
       const setR = (id,key,fmt=v=>+v)=>{
-        const el=document.getElementById(id);
-        if (key && params[key] !== undefined) el.value = params[key];
-        el.addEventListener("input", ()=>{
-          const v = fmt(el.value);
-          if (id === "renderScale") {
-            params.renderScale = v;
-            currentDpr = Math.max(0.6, Math.min(v, (window.devicePixelRatio||1)));
-            document.getElementById("renderScaleVal").textContent = currentDpr.toFixed(2) + "×";
-            rebuildRenderer();
-            return;
-          }
-          if (key === "theta") {
-            document.getElementById("thetaVal").textContent = Number(v).toFixed(4);
-            params.rotation = [Math.cos(v), Math.sin(v)];
-            return;
-          }
-          if (key) params[key]=v;
-          const vv=document.getElementById(id+"Val"); if (vv) vv.textContent=(+v).toFixed(2);
+        const el=document.getElementById(id); if(key) el.value=params[key];
+        el.addEventListener("input",()=>{ const v=fmt(el.value); if(key) params[key]=v;
+          const vv=document.getElementById(id+"Val");
+          if(vv){ vv.textContent=(id==="rotationSpeed"?Number(v).toFixed(3): id==="hueShift"?String(v): Number(v).toFixed(2)); }
+          if(id==="transparent") rebuildTransparency();
         });
       };
-
-      setR("renderScale"); document.getElementById("renderScaleVal").textContent = currentDpr.toFixed(2) + "×";
-
-      setR("exposure","exposure"); document.getElementById("exposureVal").textContent=params.exposure.toFixed(2);
-      setR("bloom","bloom"); document.getElementById("bloomVal").textContent=params.bloom.toFixed(2);
-      setR("gamma","gamma"); document.getElementById("gammaVal").textContent=params.gamma.toFixed(2);
-
+      const setC = (id,key)=>{
+        const el=document.getElementById(id); el.checked=!!params[key];
+        el.addEventListener("change",()=>{ params[key]=!!el.checked; if(id==="transparent") rebuildTransparency();});
+      };
       setR("density","density"); document.getElementById("densityVal").textContent=params.density.toFixed(2);
       setR("hueShift","hueShift", Number); document.getElementById("hueShiftVal").textContent=String(params.hueShift);
       setR("saturation","saturation"); document.getElementById("saturationVal").textContent=params.saturation.toFixed(2);
-      setR("glow","glow"); document.getElementById("glowVal").textContent=params.glow.toFixed(2);
+      setR("glow","glowIntensity"); document.getElementById("glowVal").textContent=params.glowIntensity.toFixed(2);
+      setC("transparent","transparent");
       setR("speed","speed"); document.getElementById("speedVal").textContent=params.speed.toFixed(2);
-      setR("vortex","vortex"); document.getElementById("vortexVal").textContent=params.vortex.toFixed(2);
-      setR("parallax","parallax"); document.getElementById("parallaxVal").textContent=params.parallax.toFixed(2);
-
-      const th=document.getElementById("theta");
-      th.value=0; document.getElementById("thetaVal").textContent="0.0000";
-      th.addEventListener("input", ()=> {
-        const a=+th.value; document.getElementById("thetaVal").textContent=a.toFixed(4);
-        params.rotation=[Math.cos(a), Math.sin(a)];
-      });
-
-      const trans=document.getElementById("transparent");
-      trans.checked=params.transparent;
-      trans.addEventListener("change", ()=>{
-        params.transparent=!!trans.checked;
-        if (program && program.uniforms && program.uniforms.uTransparent) {
-          program.uniforms.uTransparent.value = params.transparent ? 1.0 : 0.0;
-        }
-      });
+      setR("starSpeed","starSpeed"); document.getElementById("starSpeedVal").textContent=params.starSpeed.toFixed(2);
+      setR("rotationSpeed","rotationSpeed"); document.getElementById("rotationSpeedVal").textContent=params.rotationSpeed.toFixed(3);
+      setR("twinkle","twinkleIntensity"); document.getElementById("twinkleVal").textContent=params.twinkleIntensity.toFixed(2);
+      setC("repulseOn","mouseRepulsion");
+      setR("repulseStrength","repulsionStrength"); document.getElementById("repulseStrengthVal").textContent=params.repulsionStrength.toFixed(2);
+      setR("autoCenter","autoCenterRepulsion"); document.getElementById("autoCenterVal").textContent=params.autoCenterRepulsion.toFixed(2);
+      const fx=document.getElementById("focalX"), fy=document.getElementById("focalY"), th=document.getElementById("theta");
+      fx.value=params.focal[0]; fy.value=params.focal[1]; th.value=Math.atan2(params.rotation[1], params.rotation[0]);
+      document.getElementById("focalXVal").textContent=params.focal[0].toFixed(3);
+      document.getElementById("focalYVal").textContent=params.focal[1].toFixed(3);
+      const setTH=()=>{ const a=+th.value; document.getElementById("thetaVal").textContent=Number(a).toFixed(4); params.rotation=[Math.cos(a), Math.sin(a)]; };
+      th.addEventListener("input", setTH); setTH();
     })();
 
+    /* ---------------- MediaPipe & WebGazer ---------------- */
+    let mpHands = null, mpPose = null, mpCamera = null;
+    let usingCamera = false;
+    let webgazerReady = false;
+
+    async function ensureMediaPipe() {
+      if (mpHands && mpPose && mpCamera) return;
+      await Promise.all([
+        import("https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"),
+        import("https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"),
+        import("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js")
+      ]);
+      const Hands = window.Hands, Pose = window.Pose, Camera = window.Camera;
+
+      mpHands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+      mpHands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      mpHands.onResults(onHands);
+
+      mpPose = new Pose({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+      mpPose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      mpPose.onResults(onPose);
+
+      mpCamera = new Camera(videoEl, { onFrame: async () => {
+        if (mpHands) await mpHands.send({ image: videoEl });
+        if (mpPose) await mpPose.send({ image: videoEl });
+      }, width: 640, height: 480 });
+    }
+
+    async function startCamera() {
+      if (usingCamera) return;
+      try { await ensureMediaPipe(); await mpCamera.start(); usingCamera = true; setStatus("Camera: on"); }
+      catch (e) { setStatus("Camera: error"); console.error(e); }
+    }
+    async function stopCamera() {
+      if (!usingCamera) return;
+      try { mpCamera.stop(); } catch {}
+      const stream = videoEl.srcObject;
+      if (stream) { stream.getTracks().forEach(t => t.stop()); videoEl.srcObject = null; }
+      usingCamera = false; setStatus("Camera: off");
+    }
+    function setStatus(text) { statusEl.textContent = text; statusMini.textContent = text; }
+
+    function onHands(res) {
+      const lm = res.multiHandLandmarks && res.multiHandLandmarks[0];
+      if (!lm) { hand.ready = false; return; }
+      const tip = lm[8], thumb = lm[4];
+      let px = tip?.x, py = tip?.y;
+      if ((px === undefined || py === undefined) && thumb && lm[8]) { px = (thumb.x + lm[8].x) * 0.5; py = (thumb.y + lm[8].y) * 0.5; }
+      if (px === undefined || py === undefined) { hand.ready = false; return; }
+      hand.x = clamp01(1 - px);
+      hand.y = clamp01(1 - py);
+      hand.conf = (res.multiHandedness && res.multiHandedness[0]) ? 0.9 : 0.6;
+      hand.ready = true;
+    }
+
+    function onPose(res) {
+      const lm = res.poseLandmarks;
+      if (!lm || !lm.length) { body.ready = false; return; }
+      const nose = lm[0], lw = lm[15], rw = lm[16];
+      const xN = nose ? (1 - nose.x) : 0.5;
+      let yUp = 0.5;
+      if (lw && rw) { const wristY = Math.min(lw.y, rw.y); yUp = 1 - clamp01(wristY); }
+      else if (lw || rw) { yUp = 1 - clamp01((lw?.y ?? rw.y)); }
+      else { yUp = 1 - clamp01(nose?.y ?? 0.5); }
+      body.x = clamp01(xN); body.y = clamp01(yUp);
+      body.conf = res.poseWorldLandmarks ? 0.9 : 0.6; body.ready = true;
+    }
+
+    async function startWebgazer() {
+      if (webgazerReady) return;
+      setStatus("Eye: loading");
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://webgazer.cs.brown.edu/webgazer.js"; s.async = true;
+        s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+      });
+      window.webgazer
+        .setRegression("ridge").setTracker("clmtrackr")
+        .setGazeListener((pred) => {
+          if (!pred) { eyeRaw.ready = false; eye.ready = false; return; }
+          const xn = pred.x / window.innerWidth;
+          const yn = pred.y / window.innerHeight;
+          eyeRaw.x = clamp01(xn); eyeRaw.y = clamp01(yn);
+          eyeRaw.conf = pred.confidence ?? 0.6; eyeRaw.ready = true;
+
+          const x = eyeRaw.x, y = eyeRaw.y;
+          const mx = c.a1*x + c.a2*y + c.a3*x*x + c.a4*x*y + c.a5*y*y + c.a6;
+          const my = c.b1*x + c.b2*y + c.b3*x*x + c.b4*x*y + c.b5*y*y + c.b6;
+          eye.x = clamp01(mx); eye.y = clamp01(1 - my);
+          eye.conf = eyeRaw.conf; eye.ready = true;
+        })
+        .showVideo(false).showFaceOverlay(false).showFaceFeedbackBox(false).showPredictionPoints(false)
+        .begin().then(()=>{ webgazerReady = true; setStatus("Eye: ready"); })
+        .catch((e)=>{ setStatus("Eye: error"); console.error(e); });
+    }
+    async function stopWebgazer(){ if (!webgazerReady) return; try{ await window.webgazer.end(); }catch{} try{ await window.webgazer.pause(); }catch{} webgazerReady=false; setStatus("Eye: off"); }
+
+    /* ------------- Calibration targets ------------- */
+    const xs = [0.02, 0.25, 0.50, 0.75, 0.98];
+    const ys = [0.02, 0.25, 0.50, 0.75, 0.98];
+    const targetPts = [];
+    for (let j = ys.length - 1; j >= 0; j--) for (let i = 0; i < xs.length; i++) targetPts.push({ fx: xs[i], fy: ys[j] });
+
+    const samplesPerPt = 180;  // ~3s @ 60fps
+    const minConf = 0.45;
+
+    function buildCalibDots() {
+      calibTargets.innerHTML = "";
+      const frameRect = calibFrame.getBoundingClientRect();
+      targetPts.forEach(({ fx, fy }, i) => {
+        const d = document.createElement("div");
+        d.className = "t";
+        d.style.left = (fx * frameRect.width) + "px";
+        d.style.top  = (fy * frameRect.height) + "px";
+        d.dataset.idx = i;
+        calibTargets.appendChild(d);
+      });
+    }
+    function setActiveDot(i) {
+      Array.from(calibTargets.children).forEach((el, idx) => el.classList.toggle("active", idx === i));
+    }
+
+    function fitQuadratic(obsXY, tgt) {
+      const M = Array.from({length:6},()=>Array(6).fill(0));
+      const bx = Array(6).fill(0), by = Array(6).fill(0);
+      for (let k=0;k<obsXY.length;k++){
+        const x = obsXY[k].x, y = obsXY[k].y;
+        const v = [x, y, x*x, x*y, y*y, 1];
+        for (let i=0;i<6;i++){
+          for (let j=0;j<6;j++) M[i][j] += v[i]*v[j];
+          bx[i] += v[i]*tgt[k].x; by[i] += v[i]*tgt[k].y;
+        }
+      }
+      const solve = (A,b)=>{
+        A=A.map(r=>r.slice()); b=b.slice(); const n=A.length;
+        for(let i=0;i<n;i++){
+          let p=i; for(let r=i+1;r<n;r++) if(Math.abs(A[r][i])>Math.abs(A[p][i])) p=r;
+          if(p!==i){ [A[i],A[p]]=[A[p],A[i]]; [b[i],b[p]]=[b[p],b[i]]; }
+          const diag=A[i][i]||1e-8;
+          for(let j=i;j<n;j++) A[i][j]/=diag; b[i]/=diag;
+          for(let r=0;r<n;r++){ if(r===i) continue;
+            const f=A[r][i]; for(let j=i;j<n;j++) A[r][j]-=f*A[i][j]; b[r]-=f*b[i];
+          }
+        }
+        return b;
+      };
+      const px = solve(M, bx), py = solve(M, by);
+      return { a1:px[0], a2:px[1], a3:px[2], a4:px[3], a5:px[4], a6:px[5],
+               b1:py[0], b2:py[1], b3:py[2], b4:py[3], b5:py[4], b6:py[5] };
+    }
+
+    async function runCalibration() {
+      buildCalibDots();
+      const frameRect = calibFrame.getBoundingClientRect();
+      const frameToScreen = (fx, fy) => ({
+        x: (frameRect.left + frameRect.width  * fx) / window.innerWidth,
+        y: (frameRect.top  + frameRect.height * fy) / window.innerHeight
+      });
+
+      calibProgress.textContent = "Calibrating… stare at the green dot (~3s each).";
+      eyeStartBtn.disabled = true;
+
+      const obs = [], tgt = [];
+      for (let i=0;i<targetPts.length;i++) {
+        setActiveDot(i);
+        const tScr = frameToScreen(targetPts[i].fx, targetPts[i].fy);
+        let k = 0, sumX=0, sumY=0, cnt=0;
+        await new Promise(r=>setTimeout(r, 250));
+        while (k < samplesPerPt) {
+          if (eyeRaw.ready && eyeRaw.conf >= minConf) { sumX += eyeRaw.x; sumY += eyeRaw.y; cnt++; k++; }
+          await new Promise(r=>requestAnimationFrame(r));
+        }
+        const avgX = sumX / Math.max(cnt,1);
+        const avgY = sumY / Math.max(cnt,1);
+        obs.push({x:avgX, y:avgY}); tgt.push({x:tScr.x, y:tScr.y});
+        calibProgress.textContent = `Calibrating… ${(i+1)}/${targetPts.length}`;
+      }
+
+      c = fitQuadratic(obs, tgt);
+      eyeCalibrated = true;
+      eyeOverlay.classList.remove("show");
+      calibProgress.textContent = "Ready.";
+      eyeStartBtn.disabled = false;
+      setStatus("Eye: calibrated");
+    }
+
+    /* ---------------- Activate input sources ---------------- */
+    async function activateSource(src) {
+      if (src === "mouse") {
+        eyeOverlay.classList.remove("show"); eyeCalibrated = false;
+        setStatus("Mouse"); await stopWebgazer(); await stopCamera(); return;
+      }
+      if (src === "hand") {
+        eyeOverlay.classList.remove("show"); eyeCalibrated = false;
+        await stopWebgazer(); await startCamera(); setStatus("Hand"); return;
+      }
+      if (src === "body") {
+        eyeOverlay.classList.remove("show"); eyeCalibrated = false;
+        await stopWebgazer(); await startCamera(); setStatus("Body"); return;
+      }
+      if (src === "eye") {
+        await startWebgazer(); await stopCamera();
+        eyeOverlay.classList.add("show");
+        setStatus("Eye");
+        lastPointerTs = 0;
+        return;
+      }
+    }
+
+    /* ---------------- Boot ---------------- */
+    document.getElementById("eyeStartBtn").addEventListener("click", runCalibration);
     initRenderer();
+    activateSource("mouse");
   </script>
 </body>
 </html>
-```

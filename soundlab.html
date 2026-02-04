@@ -65,19 +65,26 @@
         #workspace {
             flex: 1; display: flex;
             height: calc(100vh - 80px);
-            overflow: hidden; /* Important for mobile scroll containment */
+            overflow: hidden;
         }
 
         /* SIDEBAR (CONTROLS) */
         aside {
             width: 250px; border-right: 1px solid var(--ink);
-            padding: 30px; display: flex; flex-direction: column; gap: 20px;
+            padding: 30px; 
+            display: flex; flex-direction: column; 
+            gap: 20px;
             transition: border-color 0.3s;
             flex-shrink: 0;
             overflow-y: auto;
         }
 
-        .control-group { margin-bottom: 20px; }
+        /* Wrapper for groups of controls */
+        .ctrl-wrapper {
+            display: flex; flex-direction: column; gap: 20px; width: 100%;
+        }
+
+        .control-group { margin-bottom: 0; }
         .label { display: block; margin-bottom: 8px; font-weight: 700; }
 
         /* SLIDERS */
@@ -164,30 +171,61 @@
             /* Switch to vertical layout */
             #workspace { flex-direction: column; }
 
-            /* Re-flow controls to a horizontal bar */
             aside {
                 width: 100%; height: auto; 
-                border-right: none; border-bottom: 1px solid var(--ink);
-                padding: 15px; 
-                flex-direction: row; flex-wrap: wrap; 
-                gap: 10px;
+                border: none; padding: 0;
+                display: contents; /* Removes aside container visual, flows children */
+            }
+
+            /* 1. Top Bar: Play & Clear */
+            #ctrl-top {
+                order: 1;
+                display: flex; flex-direction: row; gap: 10px;
+                padding: 15px;
+                border-bottom: 1px solid var(--ink);
                 justify-content: space-between;
                 align-items: center;
+                width: 100%;
+                flex-shrink: 0;
             }
 
-            .control-group { margin-bottom: 0; flex: 1; min-width: 80px; text-align: center;}
-            .btn { padding: 10px 5px; font-size: 9px; }
-            
-            #sequencer { 
+            /* 2. Sequencer: Middle */
+            #sequencer {
+                order: 2;
+                /* CHANGED: Removed flex: 1. It now only takes needed height. */
+                flex: 0 0 auto; 
                 padding: 20px 10px; 
                 justify-content: flex-start; 
-                display: block; /* Allows internal scrolling */
+                display: block; 
             }
 
+            /* 3. Bottom Bar: Tempo, FX, Mutate */
+            #ctrl-bottom {
+                order: 3;
+                /* CHANGED: Added flex: 1 to fill the remaining empty vertical space */
+                flex: 1; 
+                display: flex; 
+                /* CHANGED: Stack vertically to fill the void */
+                flex-direction: column; 
+                /* CHANGED: Distribute evenly in the white space */
+                justify-content: space-evenly; 
+                padding: 20px 30px;
+                border-top: 1px solid var(--ink);
+                width: 100%;
+                background: var(--bg);
+            }
+
+            .control-group { 
+                margin-bottom: 0; 
+                width: 100%; 
+                text-align: center;
+            }
+            
+            .btn { padding: 15px; font-size: 10px; } /* Slightly larger touch targets */
+            
             .track { margin-bottom: 15px; }
             .track-label { width: 60px; font-size: 9px; padding-right: 10px; }
 
-            /* Make steps scrollable on small screens */
             .steps {
                 display: flex; 
                 overflow-x: auto;
@@ -195,11 +233,10 @@
                 padding-bottom: 5px;
             }
             .step {
-                flex: 0 0 30px; /* Fixed width for touch targets */
+                flex: 0 0 30px; 
                 height: 100%;
             }
             
-            /* Hide scrollbar */
             .steps::-webkit-scrollbar { display: none; }
         }
     </style>
@@ -220,29 +257,32 @@
 
     <div id="workspace">
         <aside>
-            <div class="control-group" style="flex-grow: 2;">
-                <button class="btn" id="play-pause">PLAY</button>
+            <div class="ctrl-wrapper" id="ctrl-top">
+                <div class="control-group" style="flex-grow: 2;">
+                    <button class="btn" id="play-pause">PLAY</button>
+                </div>
+                <button class="btn" id="clear" style="flex-grow: 0; width: auto; min-width: 40px;">X</button>
             </div>
             
-            <div class="control-group">
-                <span class="label">TEMPO</span>
-                <input type="range" id="tempo" min="80" max="180" value="128">
-            </div>
+            <div class="ctrl-wrapper" id="ctrl-bottom">
+                <div class="control-group">
+                    <span class="label">TEMPO</span>
+                    <input type="range" id="tempo" min="80" max="180" value="128">
+                </div>
 
-            <div class="control-group">
-                <span class="label">FX</span>
-                <div style="display: flex; gap: 5px; justify-content: center;">
-                    <button class="btn" id="fx-crush">BIT</button>
-                    <button class="btn" id="fx-verb">SPC</button>
+                <div class="control-group">
+                    <span class="label">FX</span>
+                    <div style="display: flex; gap: 5px; justify-content: center;">
+                        <button class="btn" id="fx-crush">BIT</button>
+                        <button class="btn" id="fx-verb">SPC</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <span class="label">BANK</span>
+                    <button class="btn" id="mutate">MUTATE</button>
                 </div>
             </div>
-
-            <div class="control-group">
-                <span class="label">BANK</span>
-                <button class="btn" id="mutate">MUTATE</button>
-            </div>
-            
-            <button class="btn" id="clear" style="flex-grow: 0; width: auto;">X</button>
         </aside>
 
         <div id="sequencer">
@@ -268,10 +308,9 @@
         if(audioInitialized) return;
 
         // --- MOBILE FIX: Direct Start ---
-        // We do NOT use preventDefault here to ensure browser sees this as a user gesture.
         await Tone.start();
         
-        // Force resume if state is suspended (common on iOS)
+        // Force resume if state is suspended
         if (Tone.context.state !== 'running') {
             await Tone.context.resume();
         }
@@ -348,10 +387,7 @@
             stepBtn.dataset.track = trackIdx;
             stepBtn.dataset.step = i;
             
-            // Interaction handler
             const interact = (e) => {
-                // We prevent default on grid to allow sliding/rapid taps, 
-                // but NOT on the start button.
                 if (e.cancelable && e.type === 'touchstart') e.preventDefault();
                 toggleStep(trackIdx, i, stepBtn);
             };
@@ -373,7 +409,6 @@
         gridData[track][step] = !gridData[track][step];
         el.classList.toggle('active');
         
-        // Audition sound on click
         if(gridData[track][step]) playSound(track, Tone.now());
     }
 
@@ -382,17 +417,15 @@
         const synth = kit[trackIdx];
         if(!synth) return;
 
-        // Pitch map for melodic instruments
-        if(trackIdx === 0) synth.triggerAttackRelease("C1", "8n", time); // Kick
-        else if(trackIdx === 1) synth.triggerAttackRelease("8n", time);  // Snare
-        else if(trackIdx === 2) synth.triggerAttackRelease("32n", time); // Hat
-        else if(trackIdx === 3) synth.triggerAttackRelease("C2", "8n", time); // Bass
-        else if(trackIdx === 4) synth.triggerAttackRelease("G4", "16n", time); // Glitch
-        else if(trackIdx === 5) synth.triggerAttackRelease(["C4", "E4", "G4"], "4n", time); // Pad
+        if(trackIdx === 0) synth.triggerAttackRelease("C1", "8n", time);
+        else if(trackIdx === 1) synth.triggerAttackRelease("8n", time);
+        else if(trackIdx === 2) synth.triggerAttackRelease("32n", time);
+        else if(trackIdx === 3) synth.triggerAttackRelease("C2", "8n", time);
+        else if(trackIdx === 4) synth.triggerAttackRelease("G4", "16n", time);
+        else if(trackIdx === 5) synth.triggerAttackRelease(["C4", "E4", "G4"], "4n", time);
     }
 
     function step(time) {
-        // Draw Playhead
         Tone.Draw.schedule(() => {
             const allSteps = document.querySelectorAll('.step');
             allSteps.forEach(s => s.classList.remove('playing'));
@@ -401,7 +434,6 @@
             currentColumn.forEach(s => s.classList.add('playing'));
         }, time);
 
-        // Trigger Sounds
         gridData.forEach((trackSteps, trackIdx) => {
             if(trackSteps[currentStep]) {
                 playSound(trackIdx, time);
@@ -413,10 +445,6 @@
 
     // --- CONTROLS ---
 
-    // START HANDLER
-    // Fix for Mobile: Use standard click. 
-    // Touching a button on mobile fires a click event 300ms later.
-    // This is acceptable and required for Tone.start() to be trusted.
     document.getElementById('start-btn').addEventListener('click', async () => {
         const btn = document.getElementById('start-btn');
         const overlay = document.getElementById('overlay');
@@ -434,7 +462,6 @@
     });
 
     document.getElementById('play-pause').onclick = async () => {
-        // Audio Context Safety Check for Mobile Wake
         if(Tone.context.state !== 'running') await Tone.context.resume();
 
         if(!isPlaying) {
@@ -446,8 +473,6 @@
             currentStep = 0;
             document.getElementById('play-pause').innerText = "PLAY";
             document.getElementById('play-pause').classList.remove('active');
-            
-            // Clear playhead visual
             document.querySelectorAll('.step').forEach(s => s.classList.remove('playing'));
         }
         isPlaying = !isPlaying;
@@ -463,12 +488,10 @@
         document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
     };
 
-    // --- THEME TOGGLE ---
     document.getElementById('theme-btn').onclick = () => {
         document.body.classList.toggle('dark-mode');
     };
 
-    // --- FX TOGGLES ---
     let crushOn = false;
     document.getElementById('fx-crush').onclick = function() {
         crushOn = !crushOn;
@@ -483,7 +506,6 @@
         this.classList.toggle('active');
     };
 
-    // --- SOUND MUTATION ---
     document.getElementById('mutate').onclick = () => {
         kit[0].envelope.decay = 0.1 + Math.random() * 0.4;
         kit[4].harmonicity.value = Math.floor(Math.random() * 10) + 1;

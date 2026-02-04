@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Prismatic Hive — Reactive Visual</title>
+  <title>Aurora Vortex — Reactive Visual</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
@@ -243,8 +243,8 @@
       density: 1.25,
       hueShift: 180,
       speed: 1.0,
-      glowIntensity: 0.8,
-      saturation: 0.35,
+      glowIntensity: 0.55,
+      saturation: 0.2,
       mouseRepulsion: true,
       repulsionStrength: 2.0,
       twinkleIntensity: 0.35,
@@ -274,7 +274,7 @@
     // y' = b1*x + b2*y + b3*x^2 + b4*x*y + b5*y^2 + b6
     let c = { a1:1,a2:0,a3:0,a4:0,a5:0,a6:0, b1:0,b2:1,b3:0,b4:0,b5:0,b6:0 };
 
-    /* ---------------- Shaders (Prismatic Hive) ---------------- */
+    /* ---------------- Shaders (CRYSTAL BLOOM — NEW VISUAL) ---------------- */
     const vertexShader = `
       attribute vec2 uv;
       attribute vec2 position;
@@ -285,7 +285,8 @@
       }
     `;
 
-    // Animated prismatic Voronoi lattice with kaleidoscopic drift + glow edges
+    // A prismatic, crystalline field built from animated Voronoi cells, radial rings,
+    // and kaleidoscopic hue shifts. Fast, bright, and very reactive.
     const fragmentShader = `
       precision highp float;
       varying vec2 vUv;
@@ -311,17 +312,20 @@
 
       #define TAU 6.28318530718
 
-      /* ---------------- Utilities ---------------- */
-      float hash11(float n){ return fract(sin(n)*43758.5453123); }
+      // Hash utilities
       float hash21(vec2 p){
         p = fract(p*vec2(234.34, 489.23));
         p += dot(p, p+34.23);
         return fract(p.x*p.y);
       }
       vec2 hash22(vec2 p){
-        float n = sin(dot(p, vec2(127.1, 311.7)));
-        return fract(vec2(262144.0*n, 262144.0*(n+0.5)));
+        return fract(vec2(
+          sin(dot(p, vec2(127.1, 311.7))),
+          sin(dot(p, vec2(269.5, 183.3)))
+        )*43758.5453);
       }
+
+      // Smooth value noise
       float vnoise(vec2 p){
         vec2 i = floor(p), f = fract(p);
         float a = hash21(i);
@@ -331,114 +335,101 @@
         vec2 u = f*f*(3.0-2.0*f);
         return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
       }
+
+      // Voronoi edge metric (F2-F1) for crisp crystal lines
+      float voronoiEdge(vec2 x, float t){
+        vec2 n = floor(x);
+        vec2 f = fract(x);
+        float md1 = 1e9; float md2 = 1e9;
+        for(int j=-1;j<=1;j++){
+          for(int i=-1;i<=1;i++){
+            vec2 g = vec2(float(i), float(j));
+            // animated jitter inside each cell (uses uStarClock)
+            vec2 o = hash22(n+g);
+            o = 0.5 + 0.5*sin((o*TAU) + t + (n.x+n.y));
+            vec2 r = g + o - f;
+            float d = dot(r,r);
+            if(d < md1){ md2 = md1; md1 = d; }
+            else if(d < md2){ md2 = d; }
+          }
+        }
+        return md2 - md1; // small near edges
+      }
+
       vec3 hsv2rgb(vec3 c){
         vec4 K = vec4(1., 2./3., 1./3., 3.);
         vec3 p = abs(fract(c.xxx+K.xyz)*6.-K.www);
         return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
       }
-      mat2 rot(float a){ float s=sin(a), c=cos(a); return mat2(c,-s,s,c); }
 
-      /* ---------------- Voronoi (nearest / second) ---------------- */
-      struct Voro { float d1; float d2; vec2 id; vec2 edgeVec; };
-      Voro voronoi(vec2 p){
-        vec2 ip = floor(p), fp = fract(p);
-        float d1 = 1e9, d2 = 1e9;
-        vec2 id1 = vec2(0.0), bestR = vec2(0.0);
-        for(int j=-1;j<=1;j++){
-          for(int i=-1;i<=1;i++){
-            vec2 g = vec2(float(i), float(j));
-            vec2 o = hash22(ip + g) - 0.5;
-            vec2 r = g + o - fp;
-            float d = dot(r,r);
-            if(d < d1){ d2 = d1; d1 = d; id1 = ip + g; bestR = r; }
-            else if(d < d2){ d2 = d; }
-          }
-        }
-        Voro v; v.d1 = d1; v.d2 = d2; v.id = id1; v.edgeVec = bestR;
-        return v;
-      }
-
-      /* ---------------- Main ---------------- */
       void main(){
-        // Normalized pixel space centered at uFocal in pixels
-        vec2 focalPx = uFocal * uResolution.xy;
-        vec2 uv = (vUv * uResolution.xy - focalPx) / max(uResolution.y, 1.0);
+        // Pixel coords centered around focal
+        vec2 focalPx = uFocal*uResolution.xy;
+        vec2 uv = (vUv*uResolution.xy - focalPx) / max(uResolution.y, 1.);
 
-        // Auto-center or interactive displacement
+        // Auto-center push or interactive repulse/attract
         if(uAutoCenter>0.){
           float d=length(uv); vec2 dir=normalize(uv+1e-5);
-          uv += dir * (uAutoCenter/(d+0.1)) * 0.05;
+          uv += dir*(uAutoCenter/(d+0.1))*0.05;
         } else if(uMouseRepulse){
           vec2 mUV=(uMouse*uResolution.xy - focalPx)/max(uResolution.y,1.);
           float md=length(uv-mUV); vec2 dir=normalize(uv-mUV+1e-5);
-          uv += dir * (uRepulse/(md+0.1)) * 0.05 * uMouseActive;
+          uv += dir*(uRepulse/(md+0.1))*0.05*uMouseActive;
         } else {
           vec2 m = uMouse - vec2(0.5);
           uv += m * 0.10 * uMouseActive;
         }
 
-        // Global rotation
-        float autoA = uTime * uRotSpeed;
-        uv = rot(autoA) * uv;
-        uv = mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x) * uv;
+        // Global rotation (keeps the field lively)
+        float ang = uTime*uRotSpeed;
+        mat2 R = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
+        uv = R*uv;
+        uv = mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x)*uv;
 
-        // Kaleidoscopic drift (mirror-fold in polar for extra structure)
+        // Domain scale & animated warp
+        float t = uTime * (0.4 + 0.6*uSpeed);
+        float sc = 2.2*uDensity + 0.6;
+        vec2 p = uv*sc;
+
+        // Gentle liquid refraction via two layers of noise
+        vec2 warp = vec2(vnoise(p*0.9 + t*0.35), vnoise(p*1.1 - t*0.28));
+        warp = (warp - 0.5) * (0.65 + 0.6*uTwinkle);
+        p += warp;
+
+        // Crystalline edges
+        float edge = voronoiEdge(p*1.85 + t*0.25, uStarClock*6.0 + t*0.5);
+        float crystal = smoothstep(0.02, 0.0, edge); // bright at edges
+
+        // Radial ring flowers (kaleidoscopic feel)
         float r = length(uv);
-        float ang = atan(uv.y, uv.x);
-        float k = 6.0; // segments
-        ang = abs(fract(ang/TAU*k)*2.0-1.0) * (TAU/k) - (TAU/(2.0*k));
-        vec2 uK = vec2(cos(ang), sin(ang)) * r;
+        float a = atan(uv.y, uv.x);
+        float petals = 6.0 + 6.0*clamp(uDensity, 0.25, 3.0)/3.0; // reacts to density
+        float rings = 0.5 + 0.5*sin( (r*10.0 + 3.0*sin(a*petals)) - t*2.0 );
 
-        // Field scale from density and speed
-        float scale = mix(1.2, 4.0, clamp(uDensity/3.0, 0.0, 1.0));
-        float t = uTime * (0.25 + 0.75*uSpeed);
-        vec2 drift = vec2(0.23, -0.17) * (t + uStarClock*4.0);
+        // Twinkle speckle
+        float tw = vnoise(p*4.0 + t*1.2);
+        float sparkle = smoothstep(0.75, 1.0, tw) * uTwinkle;
 
-        // Two layered Voronoi domains for depth
-        vec2 p1 = uK*scale + drift;
-        vec2 p2 = (rot(0.5)*uK)*scale*0.75 + drift*1.7;
+        // Base brightness & color
+        float base = 0.28 + 0.55*rings + 0.65*crystal + 0.25*sparkle;
+        base = clamp(base, 0.0, 1.4);
 
-        Voro v1 = voronoi(p1);
-        Voro v2 = voronoi(p2);
-
-        // Edge strength (brighter near cell borders)
-        float e1 = clamp(0.5 + (v1.d2 - v1.d1)*3.0, 0.0, 1.0);
-        float e2 = clamp(0.5 + (v2.d2 - v2.d1)*3.0, 0.0, 1.0);
-
-        // Twinkle / shimmer (cheap)
-        float tw1 = vnoise(p1*3.5 + vec2(0.0, t*0.8));
-        float tw2 = vnoise(p2*3.5 + vec2(t*0.6, 0.0));
-        float tw = mix(tw1, tw2, 0.5) * uTwinkle;
-
-        // Cell-based hue (stable but animated)
-        float h1 = hash21(v1.id*1.731) + 0.12*sin(t*0.6 + hash21(v1.id+2.0));
-        float h2 = hash21(v2.id*2.137) + 0.12*cos(t*0.5 + hash21(v2.id+4.0));
-        float hue = fract((uHueShift/360.0) + mix(h1, h2, 0.5));
-
-        // Base value and glow
-        float contour = smoothstep(0.0, 0.08, e1) + smoothstep(0.0, 0.08, e2);
-        float border = pow(contour, 2.0);
-        float core = smoothstep(0.6, 0.0, r) * 0.35;
-        float val = clamp(0.15 + 0.85*border + 0.35*core + tw*0.4, 0.0, 1.0);
-
-        // Saturation rises toward edges, plus user control
-        float sat = clamp(uSat + 0.5*border, 0.0, 1.0);
-
-        // Color
+        float hue = fract(uHueShift/360. + 0.12*rings + 0.18*crystal + 0.03*sin(t + vnoise(p*1.7)));
+        float sat = clamp(uSat + 0.35*crystal + 0.15*rings, 0.0, 1.0);
+        float val = clamp(0.35 + 0.75*base, 0.0, 1.0);
         vec3 col = hsv2rgb(vec3(hue, sat, val));
 
-        // Radial falloff + glow boost
-        float vign = smoothstep(1.8, 0.2, length(uv)) * 0.25;
-        col *= (1.0 - vign);
-        col *= (0.70 + uGlow*0.9);
+        // Center glow falloff (nice depth cue)
+        float glow = smoothstep(1.8, 0.1, length(uv)) * uGlow;
+        col += col * (0.25 + glow*0.85);
 
-        // Subtle chroma variations from the two layers
-        col += 0.15*vec3(sin(h1*6.283 + t*0.7), sin(h2*6.283 + t*0.5), sin((h1+h2)*3.141+ t*0.9)) * (border*0.35);
+        // Subtle vignette to frame
+        float v = smoothstep(1.9, 0.2, length(uv))*0.22;
+        col *= (1.0 - v);
 
-        // Output
         if(uTransparent){
-          float a = clamp(dot(col, vec3(0.299,0.587,0.114))*1.15, 0.0, 1.0);
-          gl_FragColor = vec4(col, a);
+          float alpha = smoothstep(0.0, 0.45, dot(col, vec3(0.333)));
+          gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
         } else {
           gl_FragColor = vec4(col, 1.0);
         }
@@ -507,7 +498,7 @@
 
       const onPointerMove = (clientX, clientY) => {
         const rect = host.getBoundingClientRect();
-        const x = (clientX - rect.left) / rect.width;         // in-sync (no inversion)
+        const x = (clientX - rect.left) / rect.width;         // 1:1 mapping
         const y = (clientY - rect.top)  / rect.height;
         targetMouse.x = clamp01(x);
         targetMouse.y = clamp01(y);
@@ -533,7 +524,7 @@
         targetMouse.y = routed.y;
         targetActive.v = routed.active;
 
-        // Adjustable smoothing
+        // Adjustable smoothing (accuracy-first)
         const k = params.smoothing; // 0.02..0.35
         smoothMouse.x += (targetMouse.x - smoothMouse.x) * k;
         smoothMouse.y += (targetMouse.y - smoothMouse.y) * k;
@@ -564,7 +555,7 @@
 
         renderer.render({ scene: mesh });
 
-        // Pixel-accurate cursor dot
+        // Pixel-accurate cursor dot (mapped 1:1 to input space)
         const rect = host.getBoundingClientRect();
         const px = smoothMouse.x * rect.width;
         const py = smoothMouse.y * rect.height;
@@ -739,7 +730,7 @@
         py = (thumb.y + lm[8].y) * 0.5;
       }
       if (px === undefined || py === undefined) { hand.ready = false; return; }
-      // video is mirrored; map to screen
+      // video is mirrored for the user; invert x to map to screen
       hand.x = clamp01(1 - px);
       hand.y = clamp01(py);
       hand.conf = (res.multiHandedness && res.multiHandedness[0]) ? 0.9 : 0.6;
@@ -750,7 +741,7 @@
       const lm = res.poseLandmarks;
       if (!lm || !lm.length) { body.ready = false; return; }
       const nose = lm[0], lw = lm[15], rw = lm[16];
-      const xN = nose ? (1 - nose.x) : 0.5;       // mirror X
+      const xN = nose ? (1 - nose.x) : 0.5;       // mirror X to match user
       let yUp;
       if (lw && rw) {
         const wristY = Math.min(lw.y, rw.y);
@@ -791,6 +782,7 @@
           const mx = c.a1*x + c.a2*y + c.a3*x*x + c.a4*x*y + c.a5*y*y + c.a6;
           const my = c.b1*x + c.b2*y + c.b3*x*x + c.b4*x*y + c.b5*y*y + c.b6;
 
+          // mirrored webcam expected: X direct, Y direct (no inversion here; we calibrated in screen space)
           eye.x = clamp01(mx);
           eye.y = clamp01(my);
           eye.conf = eyeRaw.conf;
@@ -824,7 +816,7 @@
       for (let i = 0; i < xs.length; i++)
         targetPts.push({ fx: xs[i], fy: ys[j] });
 
-    const samplesPerPt = 150; // ~2.5s @ 60fps
+    const samplesPerPt = 150; // ~2.5s @ 60fps (good accuracy, less lag)
     const minConf = 0.45;
 
     function buildCalibDots() {
@@ -933,7 +925,7 @@
         await stopWebgazer();
         await startCamera();
         setStatus("Hand");
-        noteEl.textContent = "Raise your index fingertip to steer the lattice.";
+        noteEl.textContent = "Raise your index fingertip to steer the vortex.";
         return;
       }
       if (src === "body") {
@@ -942,7 +934,7 @@
         await stopWebgazer();
         await startCamera();
         setStatus("Body");
-        noteEl.textContent = "Move your head/arms to steer the lattice.";
+        noteEl.textContent = "Move your head/arms to steer the vortex.";
         return;
       }
       if (src === "eye") {

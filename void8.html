@@ -274,7 +274,7 @@
     // y' = b1*x + b2*y + b3*x^2 + b4*x*y + b5*y^2 + b6
     let c = { a1:1,a2:0,a3:0,a4:0,a5:0,a6:0, b1:0,b2:1,b3:0,b4:0,b5:0,b6:0 };
 
-    /* ---------------- Shaders (NEW: Prism Kaleidoscope) ---------------- */
+    /* ---------------- Shaders (NEW: Starflower Kaleidoscope) ---------------- */
     const vertexShader = `
       attribute vec2 uv;
       attribute vec2 position;
@@ -285,8 +285,8 @@
       }
     `;
 
-    // "Prism Kaleidoscope": hex-tiling + voronoi glass + kaleidoscopic folds
-    // Keeps the same uniforms & UI, but renders a totally different aesthetic.
+    // Totally different look: radial kaleidoscope bloom with crystalline rays + ring pulses.
+    // Parameters still map 1:1 to the same UI controls.
     const fragmentShader = `
       precision highp float;
       varying vec2 vUv;
@@ -317,17 +317,8 @@
         p += dot(p, p+34.23);
         return fract(p.x*p.y);
       }
-      vec2 hash22(vec2 p){
-        float n = hash21(p);
-        return vec2(n, hash21(p+n+13.7));
-      }
-      vec3 hsv2rgb(vec3 c){
-        vec4 K = vec4(1., 2./3., 1./3., 3.);
-        vec3 p = abs(fract(c.xxx+K.xyz)*6.-K.www);
-        return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
-      }
 
-      // cheap value noise
+      // value noise (2D)
       float vnoise(vec2 p){
         vec2 i = floor(p), f = fract(p);
         float a = hash21(i);
@@ -338,42 +329,50 @@
         return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
       }
 
-      // kaleidoscope fold around origin into N wedges
-      vec2 kale(vec2 p, float N){
-        float a = atan(p.y, p.x);
-        float r = length(p);
-        float m = TAU / N;
-        a = mod(a, m);
-        a = abs(a - 0.5*m);
+      vec3 hsv2rgb(vec3 c){
+        vec4 K = vec4(1., 2./3., 1./3., 3.);
+        vec3 p = abs(fract(c.xxx+K.xyz)*6.-K.www);
+        return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
+      }
+
+      // convert polar->cartesian
+      vec2 fromPolar(float r, float a){
         return vec2(cos(a), sin(a))*r;
       }
 
-      // Voronoi: return distance to closest site and edge hint
-      vec2 voronoi(vec2 x){
-        vec2 n = floor(x);
-        vec2 f = fract(x);
-        float md = 8.0; vec2 mg = vec2(0.0);
-        float sd = 8.0; // second best
-        for(int j=-1;j<=1;j++){
-          for(int i=-1;i<=1;i++){
-            vec2 g = vec2(float(i), float(j));
-            vec2 o = hash22(n+g);
-            vec2 r = g + o - f;
-            float d = dot(r,r);
-            if (d < md){ sd = md; md = d; mg = r; }
-            else if (d < sd){ sd = d; }
-          }
+      // star-ray intensity: sum of gaussian-like lines along N directions
+      float starRays(vec2 p, float rays, float sharp){
+        float s = 0.0;
+        float k = TAU / rays;
+        float r = length(p)+1e-4;
+        // scale with radius to keep thickness consistent
+        float sc = mix(1.5, 5.5, clamp(r, 0.0, 1.0));
+        for (int i=0;i<16;i++){
+          if(float(i) >= 16.0) break;
+          if(float(i) >= rays) break;
+          float a = float(i)*k;
+          vec2 d = vec2(cos(a), sin(a));
+          float dist = abs(dot(normalize(p), d)); // angular distance (0..1)
+          // convert angular distance to approx line distance
+          float line = exp(-pow(dist*sc, sharp));
+          s += line;
         }
-        // edge metric (distance between closest & second-closest)
-        float edge = sd - md;
-        return vec2(sqrt(md), edge);
+        return s / max(rays, 1.0);
+      }
+
+      // mirror angle into kaleidoscope wedges
+      float kaleidoAngle(float a, float seg){
+        float k = TAU/seg;
+        float aa = mod(a, 2.0*k);
+        return (aa > k) ? (2.0*k - aa) : aa;
       }
 
       void main(){
         vec2 focalPx = uFocal*uResolution.xy;
+        // pixel-correct uv around focal point
         vec2 uv = (vUv*uResolution.xy - focalPx) / max(uResolution.y, 1.);
 
-        // auto center push or interactive offset
+        // Auto-center push or interactive offset/repulsion
         if(uAutoCenter>0.){
           float d=length(uv); vec2 dir=normalize(uv+1e-5);
           uv += dir*(uAutoCenter/(d+0.1))*0.05;
@@ -383,75 +382,74 @@
           uv += dir*(uRepulse/(md+0.1))*0.06*uMouseActive;
         } else {
           vec2 m = uMouse - vec2(0.5);
-          uv += m * 0.12 * uMouseActive;
+          uv += m * 0.10 * uMouseActive;
         }
 
-        // global rotation + user rotation knob
+        // global rotation + manual theta rotation from UI (encoded in uRotation)
         float ang = uTime*uRotSpeed;
         mat2 R = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
         uv = R*uv;
         uv = mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x)*uv;
 
-        // scale field by density
-        float sc = mix(0.7, 3.6, clamp(uDensity/3.0, 0.0, 1.0));
-        vec2 p = uv * sc;
-
-        // domain warp (glass shimmer)
-        float t = uTime * (0.6 + 0.6*uSpeed);
-        vec2 w1 = 0.35*vec2(sin(1.3*p.y + 0.8*t), cos(1.2*p.x - 0.6*t));
-        vec2 w2 = 0.25*vec2(cos(1.7*p.x - 0.4*t), sin(1.8*p.y + 0.5*t));
-        p += w1 + w2;
-
-        // kaleidoscopic fold (crystal symmetry)
-        p = kale(p, 8.0);
-
-        // hex-like skew for variety
-        mat2 H = mat2(1.0, 0.0, 0.57735, 1.1547); // basis for hex grid
-        vec2 hq = H * p;
-
-        // Voronoi glass facets
-        vec2 v = voronoi(hq);
-        float d  = v.x;        // distance to cell center
-        float e  = v.y;        // edge separation
-
-        // crisp edges
-        float edge = 1.0 - smoothstep(0.02, 0.12, e);
-        float rim  = 1.0 - smoothstep(0.06, 0.22, d);
-
-        // fine grid lines (like etched glass)
-        vec2 gq = fract(hq) - 0.5;
-        float grid = 1.0 - min(
-          smoothstep(0.0, 0.01, abs(gq.x)),
-          smoothstep(0.0, 0.01, abs(gq.y))
+        // slight domain warp for organic feel
+        float t = uTime * (0.5 + uSpeed*0.8);
+        vec2 warp = vec2(
+          vnoise(uv*2.1 + vec2(0.7, -1.3) + uStarClock*0.6),
+          vnoise(uv*2.1 + vec2(-1.9, 0.4) - uStarClock*0.45)
         );
-        grid *= 0.85;
+        uv += (warp - 0.5) * 0.18 * (0.6 + 0.6*uDensity);
 
-        // prismatic hue based on polar angle and cell id noise
-        float angP = atan(p.y, p.x);
-        float hue = fract(uHueShift/360.0 + 0.12*sin(3.0*angP + 0.7*t) + 0.05*vnoise(p*1.7 - 0.3*t));
-        float sat = clamp(uSat + 0.45*rim + 0.25*edge, 0.0, 1.0);
+        // convert to polar
+        float r = length(uv);
+        float a = atan(uv.y, uv.x);
 
-        // brightness: edges + grid + inner glow
-        float glow = uGlow;
-        float val = 0.18 + 1.2*edge + 0.7*grid + 0.9*rim;
+        // kaleidoscope wedges count derived from Density
+        float seg = floor(mix(5.0, 18.0, clamp(uDensity/3.0, 0.0, 1.0)));
+        float aK = kaleidoAngle(a, seg);
 
-        // subtle star sparkle
-        float tw = step(0.985, fract(sin(dot(floor(hq), vec2(12.9898,78.233)) + t*0.75 + uStarClock*2.0)*43758.5453));
-        val += tw * uTwinkle * 0.9;
+        // reconstruct mirrored coords for star calc
+        vec2 kUV = fromPolar(r, aK);
 
+        // crystalline star rays
+        float rays = mix(6.0, 14.0, clamp(uDensity/3.0, 0.0, 1.0));
+        float raySharp = mix(1.6, 2.6, clamp(uGlow, 0.0, 1.0));
+        float sRays = starRays(kUV, rays, raySharp);
+
+        // pulsing rings
+        float ringFreq = mix(6.0, 22.0, clamp(uDensity/3.0, 0.0, 1.0));
+        float rings = 0.5 + 0.5*sin(r*ringFreq - t*1.8);
+
+        // petal modulation from mirrored angle
+        float petalFreq = mix(2.5, 9.5, clamp(uDensity/3.0, 0.0, 1.0));
+        float petals = 0.5 + 0.5*cos(aK*petalFreq + r*3.0 - t*1.2);
+
+        // sparkle (grid hash + twinkle)
+        vec2 g = floor((uv + 0.5)*vec2(10.0 + 40.0*uDensity));
+        float tw = uTwinkle * (0.4 + 0.6*sin(t*2.7 + hash21(g)*TAU));
+        float sparkle = smoothstep(0.8, 1.0, vnoise(uv*6.0 + t*0.8)) * tw;
+
+        // combine fields
+        float core = pow(sRays, 1.25) * 0.85 + rings*0.35 + petals*0.3;
+        core = smoothstep(0.35, 0.95, core);
+
+        // color palette (hue varies by wedge index + radius + drift)
+        float wedgeIdx = floor((a + TAU*0.5) / (TAU/seg));
+        float hue = fract((uHueShift/360.0) + wedgeIdx/seg + 0.12*sin(r*1.5 - t*0.4) + 0.05*vnoise(uv*2.0 - t*0.2));
+        float sat = clamp(uSat + 0.35*core, 0.0, 1.0);
+        float val = clamp(0.20 + core*0.9 + sparkle, 0.0, 1.0);
         vec3 col = hsv2rgb(vec3(hue, sat, val));
 
-        // radial falloff vignette + glow push
-        float vign = smoothstep(1.9, 0.15, length(uv));
-        col *= (1.0 - 0.25*vign);
-        col += col*glow*0.25*(edge + grid);
+        // glow falloff from center
+        float gfall = smoothstep(1.6, 0.2, r) * uGlow;
+        col += col * gfall * 0.5;
 
-        // gamma-like lift for visibility
-        col = pow(col, vec3(0.92));
+        // subtle vignette
+        float vig = smoothstep(1.8, 0.15, r) * 0.22;
+        col *= (1.0 - vig);
 
         if(uTransparent){
-          float a = clamp(dot(col, vec3(0.333)), 0.0, 1.0);
-          gl_FragColor = vec4(col, a);
+          float alpha = smoothstep(0.0, 0.35, dot(col, vec3(0.333)));
+          gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
         } else {
           gl_FragColor = vec4(col, 1.0);
         }
@@ -520,7 +518,7 @@
 
       const onPointerMove = (clientX, clientY) => {
         const rect = host.getBoundingClientRect();
-        const x = (clientX - rect.left) / rect.width;         // direct mapping
+        const x = (clientX - rect.left) / rect.width;         // direct mapping (not inverted)
         const y = (clientY - rect.top)  / rect.height;        // direct mapping
         targetMouse.x = clamp01(x);
         targetMouse.y = clamp01(y);
@@ -546,7 +544,7 @@
         targetMouse.y = routed.y;
         targetActive.v = routed.active;
 
-        // Adjustable smoothing
+        // Adjustable smoothing (accuracy-first)
         const k = params.smoothing; // 0.02..0.35
         smoothMouse.x += (targetMouse.x - smoothMouse.x) * k;
         smoothMouse.y += (targetMouse.y - smoothMouse.y) * k;
@@ -577,7 +575,7 @@
 
         renderer.render({ scene: mesh });
 
-        // Pixel-accurate cursor dot
+        // Pixel-accurate cursor dot (mapped 1:1 to input space)
         const rect = host.getBoundingClientRect();
         const px = smoothMouse.x * rect.width;
         const py = smoothMouse.y * rect.height;
@@ -947,7 +945,7 @@
         await stopWebgazer();
         await startCamera();
         setStatus("Hand");
-        noteEl.textContent = "Raise your index fingertip to steer the prism.";
+        noteEl.textContent = "Raise your index fingertip to steer the bloom.";
         return;
       }
       if (src === "body") {
@@ -956,7 +954,7 @@
         await stopWebgazer();
         await startCamera();
         setStatus("Body");
-        noteEl.textContent = "Move your head/arms to steer the prism.";
+        noteEl.textContent = "Move your head/arms to steer the bloom.";
         return;
       }
       if (src === "eye") {

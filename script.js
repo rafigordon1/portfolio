@@ -988,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
            navigator.clipboard.writeText('rafigordon04@gmail.com').then(() => {
                const span = popup.querySelector('span');
                const original = span.textContent;
-               span.textContent = "Copied!";
+               span.textContent = "Email Copied!";
                synth.playCharge();
                popup.classList.add('show'); 
                if(isMobile) {

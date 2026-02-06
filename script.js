@@ -728,61 +728,40 @@ document.addEventListener('DOMContentLoaded', () => {
         new p5(ethosSketch);
     }
   
-    // ─── NEW LIQUID DEMO INTERACTION ───
+    // ─── NEW ADVANCED LIQUID/GEOMETRY DEMO ───
     if (document.getElementById('liquid-demo-container')) {
         const liquidContainer = document.getElementById('liquid-demo-container');
         
-        // Mobile Logic for Vizardry Demo: Toggle UI on tap (No Timeout)
+        // Mobile Logic for Toggle UI
         const toggleUI = (e) => {
             if (isMobile) {
-               // Ensure we aren't clicking the sliders
                if (e.target.classList.contains('liquid-slider') || e.target.closest('.immersive-ui-panel')) return;
                liquidContainer.classList.toggle('mobile-active');
             }
         };
-  
-        // Listen for touch/click on container to reveal/hide
         liquidContainer.addEventListener('click', toggleUI);
-        // Removed touchstart listener on container to prevent double-firing with click, 
-        // or ghost clicks. Standard click is fine for this toggle.
   
-        // Prevent slider interaction from bubbling to container toggle
         const sliders = liquidContainer.querySelectorAll('.liquid-slider');
         sliders.forEach(s => {
             s.addEventListener('click', (e) => e.stopPropagation());
             s.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: true});
         });
   
-        // Request Orientation (Mobile)
-        if (isMobile && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            liquidContainer.addEventListener('click', () => {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => { if (response === 'granted') { /* Permission Granted */ } })
-                    .catch(console.error);
-            });
-        }
-  
         const liquidSketch = (p) => {
-            let particles = [];
-            const numParticles = 100; // Less particles, thicker trails for "gooey" liquid
-            let noiseZ = 0;
-            
             let sFlow, sTurb, sColor;
+            let rows, cols;
+            let scl = 20;
+            let zoff = 0;
+            let particles = [];
   
             p.setup = () => {
                 let c = p.createCanvas(liquidContainer.offsetWidth, liquidContainer.offsetHeight);
                 c.parent('liquid-demo-container');
-                p.colorMode(p.HSB, 1.0);
-                p.noStroke();
-                p.background(0); // Ensure a clear background on start
+                p.colorMode(p.HSB, 360, 100, 100, 100);
+                p.noFill();
                 
-                for(let i=0; i<numParticles; i++) {
-                    particles.push({ 
-                        x: p.random(p.width), 
-                        y: p.random(p.height),
-                        vx: 0, vy: 0 
-                    });
-                }
+                cols = p.floor(p.width / scl);
+                rows = p.floor(p.height / scl);
                 
                 sFlow = document.getElementById('liquid-flow');
                 sTurb = document.getElementById('liquid-turb');
@@ -790,58 +769,44 @@ document.addEventListener('DOMContentLoaded', () => {
             };
   
             p.draw = () => {
-                // Fading background for trails (Liquid feel)
-                // IMPORTANT: Using rgba instead of fill(0, 0.1) to avoid black dot issues
-                p.fill(0, 0, 0, 0.1); 
-                p.rect(0,0,p.width, p.height);
-  
-                let flow = sFlow ? parseFloat(sFlow.value) : 0.5;
-                let turb = sTurb ? parseFloat(sTurb.value) : 1.0;
-                let colBase = sColor ? parseFloat(sColor.value) : 0.5;
-  
-                // Mobile Tilt Bias
-                let tiltX = 0, tiltY = 0;
-                if (p.rotationX !== undefined) {
-                    tiltX = p.constrain(p.rotationY, -45, 45) / 10; 
-                    tiltY = p.constrain(p.rotationX, -45, 45) / 10;
-                }
-  
-                noiseZ += flow * 0.02;
-  
-                for(let i=0; i<numParticles; i++) {
-                    let pt = particles[i];
-                    // Noise angle
-                    let n = p.noise(pt.x * 0.005 * turb, pt.y * 0.005 * turb, noiseZ);
-                    let angle = n * p.TWO_PI * 2 * turb;
+                p.clear(); // Clear canvas each frame for sharp geometry
+                
+                let speed = sFlow ? parseFloat(sFlow.value) : 0.2;
+                let turb = sTurb ? parseFloat(sTurb.value) : 50; 
+                let hueVal = sColor ? parseFloat(sColor.value) : 180;
+                
+                zoff += speed * 0.1;
+                
+                p.strokeWeight(1.5);
+                
+                // Create a geometric wave mesh
+                for (let y = 0; y < rows; y++) {
+                    p.beginShape();
+                    // Cycle hue slightly per row for depth
+                    let h = (hueVal + y * 2) % 360;
+                    p.stroke(h, 80, 100, 80);
                     
-                    // Physics
-                    pt.vx += p.cos(angle) * 0.5;
-                    pt.vy += p.sin(angle) * 0.5;
-                    
-                    // Apply tilt
-                    pt.vx += tiltX * 0.2;
-                    pt.vy += tiltY * 0.2;
-  
-                    // Friction/Speed Limit
-                    pt.vx *= 0.9; pt.vy *= 0.9;
-                    const maxSpeed = 3 + (flow * 4);
-                    pt.x += p.constrain(pt.vx, -maxSpeed, maxSpeed);
-                    pt.y += p.constrain(pt.vy, -maxSpeed, maxSpeed);
-  
-                    // Wrap
-                    if(pt.x < 0) pt.x = p.width; if(pt.x > p.width) pt.x = 0;
-                    if(pt.y < 0) pt.y = p.height; if(pt.y > p.height) pt.y = 0;
-  
-                    // Draw Blob
-                    let hue = (colBase + n * 0.3) % 1.0;
-                    p.fill(hue, 0.8, 1.0);
-                    p.ellipse(pt.x, pt.y, 10 + turb * 10); // Variable size
+                    for (let x = 0; x <= cols; x++) {
+                        // Calculate vertex Y position based on noise/sine waves
+                        let xPos = x * scl;
+                        
+                        // Main wave math
+                        let n = p.noise(x * 0.1, y * 0.1, zoff);
+                        let wave = p.sin(x * 0.2 + zoff * 2) * (turb * 0.5);
+                        let yOffset = p.map(n, 0, 1, -turb, turb);
+                        
+                        let yPos = (y * scl) + yOffset + wave;
+                        
+                        p.vertex(xPos, yPos);
+                    }
+                    p.endShape();
                 }
             };
   
             p.windowResized = () => {
                  p.resizeCanvas(liquidContainer.offsetWidth, liquidContainer.offsetHeight);
-                 p.background(0);
+                 cols = p.floor(p.width / scl);
+                 rows = p.floor(p.height / scl);
             };
         };
         new p5(liquidSketch);

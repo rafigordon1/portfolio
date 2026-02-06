@@ -335,6 +335,15 @@
   .project-info h2 { font-size: 1.8rem; font-weight: 100; margin: 0; text-transform: uppercase; }
   .project-info span { font-size: 0.8rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.1em; }
   
+  .project-description {
+      margin-top: 0.5rem;
+      font-size: 1rem;
+      font-weight: 100;
+      line-height: 1.4;
+      opacity: 0.8;
+      max-width: 600px;
+  }
+  
   .grid-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 6rem 2rem; width: 100%; margin-top: 5rem; }
   .grid-item { opacity: 1; transform: none; transition: all 0.8s ease; position: relative; display: flex; flex-direction: column; gap: 1rem; }
   .grid-item.visible { opacity: 1; transform: translateY(0); }
@@ -679,6 +688,15 @@
   }
   .reveal-btn:hover { opacity: 1; background: rgba(125,125,125,0.1); }
 
+  .safe-instruction {
+      font-size: 1.3rem;
+      margin-bottom: 2rem;
+      opacity: 0.8;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+  }
+
   .tge-minigame-container {
       width: 100%; max-width: 400px; margin: 0 auto;
       background: #e0e0e0; 
@@ -878,6 +896,13 @@
     .tge-minigame-container { width: 90%; }
     .safe-keypad { gap: 5px; }
     .key-btn { font-size: 1rem; }
+
+    /* SAFE INSTRUCTION MOBILE */
+    .safe-instruction {
+        font-size: 1rem;
+        padding: 0 1rem;
+        margin-bottom: 1.5rem;
+    }
     
     .v-launch-btn { display: none !important; } 
     .v-text p { font-size: 1.1rem !important; }

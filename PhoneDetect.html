@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-<title>Focus Guard — Pro</title>
+<title>Focus Guard — Phone Only</title>
 <style>
   :root { 
     --bg: #050505; 
     --cyan: #00f3ff; 
-    --red: #ff003c; 
     --glass: rgba(16, 20, 26, 0.9);
   }
   * { box-sizing: border-box; }
@@ -35,19 +34,6 @@
     box-shadow: inset 0 0 60px var(--cyan); 
     border: 4px solid var(--cyan); 
   }
-  .hud.screech-active { 
-    box-shadow: inset 0 0 100px var(--red); 
-    border: 8px solid var(--red); 
-    animation: shake 0.3s infinite; 
-  }
-
-  @keyframes shake {
-    0% { transform: translate(1px, 1px); }
-    25% { transform: translate(-2px, -2px); }
-    50% { transform: translate(2px, 0px); }
-    75% { transform: translate(-1px, 2px); }
-    100% { transform: translate(0px, 0px); }
-  }
 
   /* Controls & Status */
   .top-bar { display: flex; justify-content: space-between; width: 100%; pointer-events: auto; }
@@ -56,7 +42,7 @@
   /* Typography */
   .label { color: #666; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; display: block; }
   .val { font-size: 16px; font-weight: bold; color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
-  .val.alert { color: var(--red); text-shadow: 0 0 8px var(--red); }
+  .val.alert { color: #fff; text-shadow: 0 0 8px #fff; }
 
   /* Interactive Elements */
   button {
@@ -74,17 +60,6 @@
     padding: 8px; font-family: inherit; font-size: 12px; outline: none; cursor: pointer;
     text-transform: uppercase;
   }
-
-  /* Centered Alert Text */
-  .center-alert {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    text-align: center; display: none;
-  }
-  .center-alert h1 {
-    font-size: 4rem; margin: 0; color: var(--red);
-    text-shadow: 0 0 20px var(--red); letter-spacing: 10px;
-  }
-
 </style>
 </head>
 <body>
@@ -101,20 +76,15 @@
         </div>
       </div>
 
-      <div id="center-msg" class="center-alert">
-        <h1>EYES UP</h1>
-      </div>
-
       <div class="btm-bar">
         <div>
           <span class="label">ACTIVE CAMERA</span>
           <span id="cam-name" class="val" style="font-size:12px; color:#fff">--</span>
         </div>
         <div style="text-align:right">
-          <span class="label">DETECTION</span>
+          <span class="label">STATUS</span>
           <div id="metrics">
-            <span style="margin-right:15px">PHONE: <span id="p-score">0%</span></span>
-            <span>GAZE: <span id="t-score">LEVEL</span></span>
+            <span>PHONE DETECT: <span id="p-score">0%</span></span>
           </div>
         </div>
       </div>
@@ -122,15 +92,11 @@
   </div>
 
   <script type="module">
-    import {FilesetResolver, ObjectDetector, FaceLandmarker} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+    import {FilesetResolver, ObjectDetector} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
 
     // --- Configuration ---
     const CONFIG = {
-      // Sensitivity: The lower this number, the EARLIER it triggers when looking down.
-      // 0.05 means "Trigger if nose is just slightly below the ears"
-      // 0.08 means "Trigger if nose is clearly below ears"
-      lookDownSensitivity: 0.04, 
-      phoneConfThreshold: 0.25, // Aggressive phone detection
+      phoneConfThreshold: 0.30, // Slightly increased confidence for stability
       phoneLabels: ["cell phone", "mobile phone", "phone", "smartphone", "iphone", "android"]
     };
 
@@ -141,23 +107,17 @@
     const hud = document.getElementById('hud');
     const startBtn = document.getElementById('start-btn');
     const camsSel = document.getElementById('cams');
-    const centerMsg = document.getElementById('center-msg');
     
     // UI Values
     const pScoreEl = document.getElementById('p-score');
-    const tScoreEl = document.getElementById('t-score');
     const camNameEl = document.getElementById('cam-name');
 
     // --- Audio Engine ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    let phoneOsc = null;
-    let screechOsc = null;
-    let screechGain = null;
     let lastBeepTime = 0;
 
     // --- State ---
     let objectDetector = null;
-    let faceLandmarker = null;
     let running = false;
     let stream = null;
     let lastVideoTime = -1;
@@ -165,7 +125,7 @@
     // --- Initialization ---
     startBtn.addEventListener('click', async () => {
       startBtn.disabled = true;
-      startBtn.textContent = "LOADING MODELS...";
+      startBtn.textContent = "LOADING...";
       
       // Resume audio context on user gesture
       if (audioCtx.state === 'suspended') await audioCtx.resume();
@@ -189,7 +149,7 @@
     async function initVision() {
       const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
 
-      // 1. Phone Detection (EfficientDet-Lite2)
+      // Phone Detection (EfficientDet-Lite2)
       objectDetector = await ObjectDetector.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float16/1/efficientdet_lite2.tflite",
@@ -198,17 +158,6 @@
         runningMode: "VIDEO",
         scoreThreshold: CONFIG.phoneConfThreshold,
         maxResults: 5
-      });
-
-      // 2. Face Landmarker
-      faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-          delegate: "GPU"
-        },
-        outputFaceBlendshapes: true,
-        runningMode: "VIDEO",
-        numFaces: 1
       });
     }
 
@@ -247,9 +196,9 @@
     }
 
     // --- Audio Functions ---
-    function playBeep(intensity) {
+    function playBeep() {
         const now = audioCtx.currentTime;
-        if (now - lastBeepTime > 0.15) { // Rapid Radar
+        if (now - lastBeepTime > 0.15) { // Rapid Radar effect
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             
@@ -267,46 +216,6 @@
             osc.stop(now + 0.15);
             lastBeepTime = now;
         }
-    }
-
-    function startScreech() {
-        if (screechOsc) return;
-        
-        screechOsc = audioCtx.createOscillator();
-        screechGain = audioCtx.createGain();
-        
-        screechOsc.type = 'sawtooth';
-        screechOsc.frequency.setValueAtTime(800, audioCtx.currentTime);
-        
-        // "Nasty" Modulation
-        const lfo = audioCtx.createOscillator();
-        lfo.type = 'sawtooth';
-        lfo.frequency.value = 20; 
-        const lfoGain = audioCtx.createGain();
-        lfoGain.gain.value = 600; 
-        
-        lfo.connect(lfoGain);
-        lfoGain.connect(screechOsc.frequency);
-        lfo.start();
-
-        screechGain.gain.setValueAtTime(0, audioCtx.currentTime);
-        screechGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1); // Fast attack
-        
-        screechOsc.connect(screechGain);
-        screechGain.connect(audioCtx.destination);
-        screechOsc.start();
-    }
-
-    function stopScreech() {
-        if (!screechOsc) return;
-        const now = audioCtx.currentTime;
-        screechGain.gain.cancelScheduledValues(now);
-        screechGain.gain.setValueAtTime(screechGain.gain.value, now);
-        screechGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        
-        screechOsc.stop(now + 0.15);
-        screechOsc = null;
-        screechGain = null;
     }
 
     // --- Core Logic ---
@@ -328,54 +237,19 @@
         const isPhone = phones.length > 0;
         let maxConf = isPhone ? Math.max(...phones.map(p => p.categories[0].score)) : 0;
 
-        // 2. Detect Gaze (Geometry Method)
-        let isLookingDown = false;
-        let gazeVal = 0;
-        
-        const faces = faceLandmarker.detectForVideo(v, startTimeMs);
-        if (faces.faceLandmarks.length > 0) {
-            const lm = faces.faceLandmarks[0];
-            
-            // KEY INDICES: 
-            // 1: Nose Tip
-            // 234: Left Ear (Cheekbone/Tragus area)
-            // 454: Right Ear
-            
-            const noseY = lm[1].y;
-            const earY = (lm[234].y + lm[454].y) / 2;
-            
-            // In normalized coords (0-1), Y increases downwards.
-            // If looking straight: Nose is roughly parallel to ears.
-            // If looking down: Nose drops BELOW ears (NoseY > EarY).
-            
-            // "gazeVal" is positive when looking down
-            gazeVal = noseY - earY;
-            
-            // Check threshold
-            if (gazeVal > CONFIG.lookDownSensitivity) {
-                isLookingDown = true;
-            }
-        }
-
-        // 3. Audio Triggers
+        // 2. Audio Triggers
         if (isPhone) {
             playBeep();
         }
 
-        if (isLookingDown) {
-            startScreech();
-        } else {
-            stopScreech();
-        }
-
-        // 4. Draw UI
-        draw(phones, gazeVal, isLookingDown, maxConf);
+        // 3. Draw UI
+        draw(phones, maxConf);
       }
 
       requestAnimationFrame(loop);
     }
 
-    function draw(phones, gazeVal, isLookingDown, conf) {
+    function draw(phones, conf) {
         ctx.clearRect(0, 0, c.width, c.height);
         
         // Draw Boxes
@@ -401,29 +275,12 @@
                 // Label
                 ctx.fillStyle = "#00f3ff";
                 ctx.font = "bold 16px Courier New";
-                ctx.fillText(`DETECTED ${(p.categories[0].score*100).toFixed(0)}%`, originX, originY - 10);
+                ctx.fillText(`PHONE ${(p.categories[0].score*100).toFixed(0)}%`, originX, originY - 10);
             });
         } else {
             hud.classList.remove('phone-active');
             pScoreEl.textContent = "0%";
             pScoreEl.classList.remove('alert');
-        }
-
-        // Gaze UI
-        if (isLookingDown) {
-            hud.classList.add('screech-active');
-            tScoreEl.textContent = "DOWN";
-            tScoreEl.classList.add('alert');
-            centerMsg.style.display = "block";
-            
-            // Red tint overlay
-            ctx.fillStyle = "rgba(255, 0, 60, 0.15)";
-            ctx.fillRect(0, 0, c.width, c.height);
-        } else {
-            hud.classList.remove('screech-active');
-            tScoreEl.textContent = "LEVEL";
-            tScoreEl.classList.remove('alert');
-            centerMsg.style.display = "none";
         }
     }
   </script>

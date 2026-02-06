@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Vizardry — Rafi Gordon</title>
+  <title>Vizardry</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
   
   <style>
+      /* OVERRIDE: Make hint text black */
+      .immersive-hint { color: #000 !important; }
+
       .v-row { margin-bottom: 15vh; }
       
       .nav-arrow {
@@ -105,18 +108,6 @@
 
     <div class="v-container">
 
-      <div class="v-row">
-          <div class="v-text">
-             <h2>Problem?</h2>
-             <p>Traditional audio-visualisers often feel disconnected from the user. They are static, pre-rendered, or locked behind expensive paywalls that limit creative expression for independent artists.</p>
-          </div>
-          <div class="v-visual">
-             <div class="project-img-Wrapper" style="border:none; background:none;">
-                <img src="paywall.jpg" alt="The Problem" style="width:100%; border-radius:4px;">
-             </div>
-          </div>
-      </div>
-
       <div class="v-row reverse">
         <div class="v-visual">
            <div class="project-img-Wrapper" style="border:none; background:none; aspect-ratio: 1/1; max-width: 100%;">
@@ -124,18 +115,30 @@
            </div>
         </div>
         <div class="v-text">
-           <h2>Solution?</h2>
+           <h2>What is it?</h2>
            <p>Vizardry is a web-based generative art suite built using p5.js that transforms real-time audio input into visual geometry. The project explores the intersection of creative coding and user experience, offering a library of visualisers and methods for interaction.<br></br><br>The visuals showing onload are only scatching the surface of possibilities, experimentation is strongly encouraged.</br></p>
         </div>
       </div>
+
+      <div class="v-row">
+        <div class="v-text">
+           <h2>The problem?</h2>
+           <p>Most online audio-visualisers often feel disconnected from the user. They are static, pre-rendered, or locked behind expensive paywalls that limit creative expression for independent artists.</p>
+        </div>
+        <div class="v-visual">
+           <div class="project-img-Wrapper" style="border:none; background:none;">
+              <img src="paywall.jpg" alt="The Problem" style="width:100%; border-radius:4px;">
+           </div>
+        </div>
+    </div>
 
       <div class="v-row reverse">
         <div class="v-visual">
             <div class="v-immersive-demo" id="liquid-demo-container">
                 <div class="immersive-ui-panel">
-                    <input type="range" class="liquid-slider" id="liquid-flow" min="0" max="2" step="0.01" value="0.1">
-                    <input type="range" class="liquid-slider" id="liquid-turb" min="0.1" max="3" step="0.1" value="1.0">
-                    <input type="range" class="liquid-slider" id="liquid-color" min="0" max="1" step="0.01" value="0.5">
+                    <input type="range" class="liquid-slider" id="liquid-flow" min="0" max="2" step="0.01" value="0.2">
+                    <input type="range" class="liquid-slider" id="liquid-turb" min="10" max="150" step="5" value="50">
+                    <input type="range" class="liquid-slider" id="liquid-color" min="0" max="360" step="1" value="180">
                 </div>
                 <div class="immersive-hint">
                     <span class="desktop-hint">Hover to Reveal UI</span>
@@ -156,13 +159,6 @@
           </div>
           <div class="v-visual">
               <div class="control-demo-wrapper">
-                  <div class="control-widget">
-                      <div class="c-box box-1">1</div>
-                      <div class="c-box box-2">2</div>
-                      <div class="c-slider-track">
-                         <div class="c-slider-thumb"></div>
-                      </div>
-                  </div>
                   <div class="project-img-Wrapper" style="border:none; background:none;">
                     <img src="dials.jpg" alt="Controls" style="width:100%; border-radius:4px;">
                   </div>

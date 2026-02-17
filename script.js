@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let rsvpInterval;
     let rsvpIndex = 0;
     let rsvpRunning = false;
-    const bioText = "I'm a digital designer based in Melbourne looking to create enjoyable and memorable experiences.";
+    const bioText = "I’m a Digital Designer specialising in user experience. I combine research and rapid prototyping to create immersive tools that are as intuitive as they are innovative. Currently available for new opportunities. My work is driven by a curiosity for how people interact with technology.";
     const words = bioText.split(' ');
   
     const renderWord = (word) => {

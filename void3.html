@@ -141,6 +141,30 @@
       transition: transform .08s ease, background .08s ease, box-shadow .08s ease;
     }
     .t.active { background: #00d26a; box-shadow: 0 0 36px rgba(0,210,106,.95); transform: translate(-50%, -50%) scale(1.25); }
+
+    /* Home Button */
+    .home-btn {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
+      padding: 8px 20px;
+      font-size: 13px;
+      letter-spacing: .04em;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      color: #fff;
+      text-decoration: none;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      transition: background .15s ease, transform .15s ease;
+    }
+    .home-btn:hover {
+      background: rgba(255,255,255,.2);
+    }
   </style>
 </head>
 <body>
@@ -149,7 +173,6 @@
     <div id="cursorDot" class="cursor-dot"></div>
     <video id="cam" playsinline autoplay muted></video>
 
-    <!-- Eye calibration overlay -->
     <div id="eyeCalib" class="overlay">
       <div class="calib-wrap">
         <div class="calib-card">
@@ -165,7 +188,6 @@
       </div>
     </div>
 
-    <!-- Control panel (opens on hover) -->
     <div class="panel">
       <div class="pill">⚙︎ Aurora</div>
       <div class="drop">
@@ -229,9 +251,10 @@
         </div>
       </div>
     </div>
+    
+    <a href="vizardry2.html" class="home-btn">Home</a>
   </div>
 
-  <!-- OGL (WebGL) + tracking -->
   <script type="module">
     import { Renderer, Program, Mesh, Color, Triangle } from "https://cdn.skypack.dev/ogl";
 

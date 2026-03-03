@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Prismatic Mosaic — Reactive Visual</title>
+  <title>Chromatic Caustics — Reactive Visual</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
@@ -141,6 +141,30 @@
       transition: transform .08s ease, background .08s ease, box-shadow .08s ease;
     }
     .t.active { background: #00d26a; box-shadow: 0 0 36px rgba(0,210,106,.95); transform: translate(-50%, -50%) scale(1.25); }
+
+    /* Home Button */
+    .home-btn {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
+      padding: 8px 20px;
+      font-size: 13px;
+      letter-spacing: .04em;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      color: #fff;
+      text-decoration: none;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      transition: background .15s ease, transform .15s ease;
+    }
+    .home-btn:hover {
+      background: rgba(255,255,255,.2);
+    }
   </style>
 </head>
 <body>
@@ -149,7 +173,6 @@
     <div id="cursorDot" class="cursor-dot"></div>
     <video id="cam" playsinline autoplay muted></video>
 
-    <!-- Eye calibration overlay -->
     <div id="eyeCalib" class="overlay">
       <div class="calib-wrap">
         <div class="calib-card">
@@ -165,7 +188,6 @@
       </div>
     </div>
 
-    <!-- Control panel (opens on hover) -->
     <div class="panel">
       <div class="pill">⚙︎ Aurora</div>
       <div class="drop">
@@ -179,8 +201,7 @@
                   <option value="mouse">Mouse</option>
                   <option value="hand">Hand</option>
                   <option value="body">Body</option>
-                  <option value="eye">Eye</option> <!-- Eye is LAST -->
-                </select>
+                  <option value="eye">Eye</option> </select>
                 <span class="badge" id="statusVal">Idle</span>
               </div>
             </div>
@@ -229,9 +250,10 @@
         </div>
       </div>
     </div>
+    
+    <a href="vizardry2.html" class="home-btn">Home</a>
   </div>
 
-  <!-- OGL (WebGL) + tracking -->
   <script type="module">
     import { Renderer, Program, Mesh, Color, Triangle } from "https://cdn.skypack.dev/ogl";
 
@@ -239,12 +261,12 @@
     const params = {
       focal: [0.5, 0.5],
       rotation: [1.0, 0.0],
-      starSpeed: 0.7,         // reused as subtle drift
+      starSpeed: 0.7,
       density: 1.25,
       hueShift: 180,
       speed: 1.0,
       glowIntensity: 0.55,
-      saturation: 0.28,
+      saturation: 0.2,
       mouseRepulsion: true,
       repulsionStrength: 2.0,
       twinkleIntensity: 0.35,
@@ -274,7 +296,7 @@
     // y' = b1*x + b2*y + b3*x^2 + b4*x*y + b5*y^2 + b6
     let c = { a1:1,a2:0,a3:0,a4:0,a5:0,a6:0, b1:0,b2:1,b3:0,b4:0,b5:0,b6:0 };
 
-    /* ---------------- Shaders (Prismatic Mosaic) ---------------- */
+    /* ---------------- Shaders (Chromatic Caustics) ---------------- */
     const vertexShader = `
       attribute vec2 uv;
       attribute vec2 position;
@@ -285,7 +307,7 @@
       }
     `;
 
-    // Liquid-crystal Voronoi mosaic with caustic edges and soft glow.
+    // New visual: refractive caustic waves + neon edges, domain-warped and eye/hand responsive.
     const fragmentShader = `
       precision highp float;
       varying vec2 vUv;
@@ -294,7 +316,7 @@
       uniform vec3  uResolution;
       uniform vec2  uFocal;
       uniform vec2  uRotation;
-      uniform float uStarClock;   // kept for compatibility
+      uniform float uStarClock;
       uniform float uDensity;
       uniform float uHueShift;
       uniform float uSpeed;
@@ -311,134 +333,126 @@
 
       #define TAU 6.28318530718
 
-      // Hash helpers
-      float hash12(vec2 p){
-        p = fract(p * vec2(127.1, 311.7));
-        p += dot(p, p + 34.5);
-        return fract(p.x * p.y);
-      }
-      vec2 hash22(vec2 p){
-        float n = hash12(p);
-        return fract(vec2(n, n*1.2154 + 0.123));
-      }
-
-      // Value noise
-      float vnoise(vec2 p){
-        vec2 i = floor(p), f = fract(p);
-        float a = hash12(i);
-        float b = hash12(i + vec2(1.,0.));
-        float c = hash12(i + vec2(0.,1.));
-        float d = hash12(i + vec2(1.,1.));
-        vec2 u = f*f*(3.0-2.0*f);
-        return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
-      }
-
-      // Simple curl-like flow from noise gradients
-      vec2 curl(vec2 p){
-        float e = 0.01;
-        float n1 = vnoise(p + vec2(0.0, e)) - vnoise(p - vec2(0.0, e));
-        float n2 = vnoise(p + vec2(e, 0.0)) - vnoise(p - vec2(e, 0.0));
-        return vec2(n1, -n2);
-      }
-
-      // Voronoi returning (closest, second-closest) distances
-      vec2 voronoi(vec2 p){
-        vec2 g = floor(p);
-        vec2 f = fract(p);
-        float d1 = 1e9;
-        float d2 = 1e9;
-        for(int j=-1;j<=1;j++){
-          for(int i=-1;i<=1;i++){
-            vec2 o = vec2(float(i), float(j));
-            vec2 r = hash22(g + o);
-            // Animate feature points in a circular drift
-            float ang = uTime*0.35 + (r.x+r.y)*6.0 + uStarClock*0.25;
-            vec2 jitter = 0.35*(r - 0.5) + 0.25*vec2(cos(ang), sin(ang));
-            vec2 diff = o + jitter - f;
-            float d = dot(diff, diff);
-            // Track smallest and second-smallest
-            if(d < d1){ d2 = d1; d1 = d; }
-            else if(d < d2){ d2 = d; }
-          }
-        }
-        return vec2(sqrt(d1), sqrt(d2));
+      float hash21(vec2 p){
+        p = fract(p*vec2(234.34, 489.23));
+        p += dot(p, p+34.23);
+        return fract(p.x*p.y);
       }
 
       vec3 hsv2rgb(vec3 c){
         vec4 K = vec4(1., 2./3., 1./3., 3.);
-        vec3 p = abs(fract(c.xxx + K.xyz) * 6. - K.www);
-        return c.z * mix(K.xxx, clamp(p - K.xxx, 0., 1.), c.y);
+        vec3 p = abs(fract(c.xxx+K.xyz)*6.-K.www);
+        return c.z*mix(K.xxx, clamp(p-K.xxx, 0., 1.), c.y);
+      }
+
+      // Simple value noise (fast)
+      float vnoise(vec2 p){
+        vec2 i = floor(p), f = fract(p);
+        float a = hash21(i);
+        float b = hash21(i+vec2(1.,0.));
+        float c = hash21(i+vec2(0.,1.));
+        float d = hash21(i+vec2(1.,1.));
+        vec2 u = f*f*(3.0-2.0*f);
+        return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+      }
+
+      // Domain warp for liquid effect
+      vec2 warp(vec2 p, float t){
+        float k1 = 0.65;
+        float k2 = 0.35;
+        vec2 q = p;
+        q += k1*vec2(vnoise(p*1.7 + vec2(0.0, t*0.35)),
+                     vnoise(p*1.7 + vec2(t*0.31, 1.0)));
+        q += k2*vec2(vnoise(q*2.3 - vec2(t*0.27, 2.0)),
+                     vnoise(q*2.1 + vec2(3.0, -t*0.22)));
+        return q;
+      }
+
+      // Sum of oriented ripples that form bright caustic ridges
+      float caustic(vec2 p, float t){
+        float s = 0.0;
+        // Three moving ripple families
+        vec2 d1 = normalize(vec2( 0.9,  0.4));
+        vec2 d2 = normalize(vec2(-0.6,  0.8));
+        vec2 d3 = normalize(vec2( 0.2, -1.0));
+        float f1 = sin(dot(p, d1)*7.0 + t*1.3);
+        float f2 = sin(dot(p, d2)*9.5 - t*1.1);
+        float f3 = sin(dot(p, d3)*6.2 + t*0.9 + sin(t*0.37)*2.0);
+        // Radial ring interference
+        float rr = sin(length(p)*8.0 - t*1.2);
+        s = f1 + f2 + f3 + rr;
+        // Ridge sharpen (absolute, then exponent)
+        float ridged = pow(1.0 - abs(s)/4.0, 6.0);
+        return clamp(ridged, 0.0, 1.0);
       }
 
       void main(){
-        // Pixel coords relative to focal point, normalized by height (keeps aspect stable)
         vec2 focalPx = uFocal*uResolution.xy;
         vec2 uv = (vUv*uResolution.xy - focalPx) / max(uResolution.y, 1.);
 
-        // Interaction field: auto-center push or mouse repulsion
-        if(uAutoCenter > 0.0){
-          float d = length(uv) + 1e-4; vec2 dir = uv/d;
-          uv += dir * (uAutoCenter/(d+0.05)) * 0.05;
+        // Auto-center outward push or interactive mouse repulsion
+        if(uAutoCenter>0.){
+          float d=length(uv); vec2 dir=normalize(uv+1e-5);
+          uv += dir*(uAutoCenter/(d+0.1))*0.05;
         } else if(uMouseRepulse){
-          vec2 mUV = (uMouse*uResolution.xy - focalPx)/max(uResolution.y,1.);
-          float md = length(uv - mUV) + 1e-4; vec2 dir = normalize(uv - mUV);
-          uv += dir * (uRepulse/(md+0.08)) * 0.055 * uMouseActive;
+          vec2 mUV=(uMouse*uResolution.xy - focalPx)/max(uResolution.y,1.);
+          float md=length(uv-mUV); vec2 dir=normalize(uv-mUV+1e-5);
+          uv += dir*(uRepulse/(md+0.1))*0.05*uMouseActive;
         } else {
-          // gentle follow if repulsion off
-          uv += (uMouse - vec2(0.5)) * 0.12 * uMouseActive;
+          vec2 m = uMouse - vec2(0.5);
+          uv += m * 0.10 * uMouseActive;
         }
 
-        // Global rotation and orientation
-        float ang = uTime * uRotSpeed;
+        // Global rotation + manual rotation vector
+        float ang = uTime*uRotSpeed;
         mat2 R = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
-        uv = R * uv;
-        uv = mat2(uRotation.x, -uRotation.y, uRotation.y, uRotation.x) * uv;
+        uv = R*uv;
+        uv = mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x)*uv;
 
-        // Flow-warped coordinates (low-iteration for performance)
-        float t = uTime * (0.5 + 0.5*uSpeed);
-        vec2 p = uv * (2.6 * uDensity);
-        p += 0.55 * curl(p*0.9 + vec2(0.0, t*0.25));
-        p += 0.35 * curl(p*1.7 - vec2(t*0.18, 0.0));
+        // Scale by density and speed time
+        float t = uTime * (0.6 + uSpeed*0.8);
+        vec2 p = uv * (2.3*uDensity);
 
-        // Layered prismatic Voronoi
-        vec3 col = vec3(0.0);
-        float acc = 0.0;
-        for(int L=0; L<3; L++){
-          float depth = float(L) / 2.0;
-          vec2 q = p * mix(0.9, 1.9, depth) + vec2(0.4*depth, -0.3*depth);
-          vec2 vd = voronoi(q);
-          float edge = vd.y - vd.x;                 // boundary thickness metric
-          float border = smoothstep(0.05, 0.0, edge); // bright on edges
-          float cell = smoothstep(0.95, 0.15, vd.x);  // inner cell glow
+        // Domain warp to get fluid refraction look
+        vec2 pw = warp(p, t);
 
-          // Twinkling speckles inside cells
-          float tw = vnoise(q*3.0 + t*0.8) * uTwinkle;
+        // Layered caustic fields with different scales
+        float c1 = caustic(pw*1.0, t);
+        float c2 = caustic(pw*1.7 + vec2(0.2, -0.3), t*0.85);
+        float c3 = caustic(pw*2.4 - vec2(0.4, 0.1), t*1.12);
 
-          float v = 0.35*border + 0.55*cell + 0.4*tw;
-          v = pow(v, mix(1.0, 0.65, uGlow));       // glow lifts midtones
+        float field = c1*0.6 + c2*0.9 + c3*0.7;
 
-          float hue = fract((uHueShift/360.0) + depth*0.18 + 0.12*vnoise(q*0.7 - t*0.3));
-          float sat = clamp(uSat + 0.35*(1.0-depth), 0.0, 1.0);
-          vec3 rgb = hsv2rgb(vec3(hue, sat, v));
+        // Edge glow accent by gradient magnitude proxy
+        float edge = smoothstep(0.35, 0.95, c2 + c3*0.5);
 
-          // Edge bloom
-          float bloom = smoothstep(0.09, 0.0, edge) * (0.5 + 0.8*uGlow);
-          rgb += bloom * rgb;
-
-          col += rgb;
-          acc += 1.0;
+        // Starry micro-sparkles (camera/eye reactive)
+        float tw = uTwinkle;
+        float sp = 0.0;
+        if (tw > 0.0){
+          float h1 = vnoise(pw*5.5 + t*0.8);
+          float h2 = vnoise(pw*7.3 - t*0.6 + 10.0);
+          sp = smoothstep(0.86, 0.995, max(h1, h2)) * tw;
         }
-        col /= max(acc, 1.0);
 
-        // Subtle vignette to frame
-        float vig = smoothstep(1.8, 0.2, length(uv));
-        col *= (1.0 - 0.22*vig);
+        // Color: sweep hue with field + user shift; saturation from UI
+        float hue = fract(uHueShift/360.0 + field*0.22 + 0.06*sin(t*0.17) + 0.03*sp);
+        float sat = clamp(uSat + 0.25*edge, 0.0, 1.0);
+        float val = clamp(0.18 + 1.35*field + 0.6*edge + 0.5*sp, 0.0, 3.0);
 
-        // Map to alpha when transparent
+        // Convert and apply "glow" as exposure
+        vec3 col = hsv2rgb(vec3(hue, sat, val));
+        col *= (0.6 + 1.6*uGlow);
+
+        // Soft vignette to frame
+        float vign = smoothstep(1.8, 0.25, length(uv));
+        col *= (1.0 - 0.28*vign);
+
+        // Optional transparency (alpha from luminance)
+        float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
         if(uTransparent){
-          float lum = dot(col, vec3(0.333));
-          float a = clamp(lum * (0.9 + 0.9*uGlow), 0.06, 1.0);
-          gl_FragColor = vec4(col, a);
+          float alpha = smoothstep(0.05, 0.45, luma);
+          gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
         } else {
           gl_FragColor = vec4(col, 1.0);
         }
@@ -791,7 +805,7 @@
           const mx = c.a1*x + c.a2*y + c.a3*x*x + c.a4*x*y + c.a5*y*y + c.a6;
           const my = c.b1*x + c.b2*y + c.b3*x*x + c.b4*x*y + c.b5*y*y + c.b6;
 
-          // mirrored webcam expected: X direct, Y direct
+          // mirrored webcam expected: X direct, Y direct (no inversion here; we calibrated in screen space)
           eye.x = clamp01(mx);
           eye.y = clamp01(my);
           eye.conf = eyeRaw.conf;
@@ -934,7 +948,7 @@
         await stopWebgazer();
         await startCamera();
         setStatus("Hand");
-        noteEl.textContent = "Raise your index fingertip to steer the mosaic.";
+        noteEl.textContent = "Raise your index fingertip to steer the caustics.";
         return;
       }
       if (src === "body") {
@@ -943,7 +957,7 @@
         await stopWebgazer();
         await startCamera();
         setStatus("Body");
-        noteEl.textContent = "Move your head/arms to steer the mosaic.";
+        noteEl.textContent = "Move your head/arms to steer the caustics.";
         return;
       }
       if (src === "eye") {

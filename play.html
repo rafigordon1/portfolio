@@ -8,6 +8,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <style>
+    @media (max-width: 768px) {
+      .hide-on-mobile {
+        display: none !important;
+      }
+    }
+  </style>
 </head>
 <body>
   <div id="p5-canvas-container"></div>
@@ -100,7 +107,7 @@
         </div>
        </div>
 
-       <div class="grid-item visible">
+       <div class="grid-item visible hide-on-mobile">
           <a href="PhoneDetect.html" target="_blank">
             <div class="project-img-Wrapper">
                 <div class="thumb-overlay"></div>
@@ -118,7 +125,6 @@
           <a href="AudioEcho.html" target="_blank">
             <div class="project-img-Wrapper">
                 <div class="thumb-overlay"></div>
-                <div class="mobile-badge">Desktop Only</div>
                 <img src="haunted.jpg" alt="Exp2">
             </div>
           </a>
@@ -128,7 +134,7 @@
           </div>
        </div>
        
-       <div class="grid-item visible">
+       <div class="grid-item visible hide-on-mobile">
           <a href="https://vizardry.live/" target="_blank">
             <div class="project-img-Wrapper">
                 <div class="thumb-overlay"></div>

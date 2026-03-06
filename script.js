@@ -582,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const mImages = document.querySelectorAll('.theme-img-m');
       mImages.forEach(img => { img.src = isDark ? 'Mlight.jpg' : 'Mdark.jpg'; });
       const soImages = document.querySelectorAll('.theme-img-so');
-      soImages.forEach(img => { img.src = isDark ? 'SOdark.jpg' : 'SOlight.jpg'; });
+      soImages.forEach(img => { img.src = isDark ? 'SO1.jpg' : 'SO1.jpg'; });
     };
   
     const savedTheme = localStorage.getItem('dj-val');

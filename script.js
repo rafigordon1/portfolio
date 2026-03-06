@@ -693,6 +693,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Desktop: Radius Check (150px from center)
                     const d = p.dist(p.mouseX, p.mouseY, p.width/2, p.height/2);
                     hovering = (d < 150);
+
+                    // Update Desktop Hover Label Visibility
+                    const hoverLabel = document.querySelector('.desktop-hover-label');
+                    if (hoverLabel) {
+                        if (hovering) {
+                            hoverLabel.classList.add('hidden');
+                        } else {
+                            hoverLabel.classList.remove('hidden');
+                        }
+                    }
                 }
   
                 if (hovering) {

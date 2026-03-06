@@ -464,6 +464,24 @@
   }
   .mobile-tap-label.hidden { opacity: 0; }
 
+  /* Desktop Hover Label for Ethos */
+  .desktop-hover-label {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      background: rgba(var(--bg-rgb), 0.8);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      pointer-events: none;
+      backdrop-filter: blur(5px);
+      transition: opacity 0.5s ease;
+      z-index: 10;
+  }
+  .desktop-hover-label.hidden { opacity: 0; }
+
   /* UPDATED: Landscape container for the final section gif */
   .about-img { 
       aspect-ratio: 16/9; /* Changed from 4/5 to 16/9 Landscape */
@@ -921,6 +939,7 @@
     .bio-gif { width: 100%; }
 
     .mobile-tap-label { display: block; }
+    .desktop-hover-label { display: none !important; }
     
     .desktop-contact-reveal { display: none !important; }
     .mobile-contact-btn {

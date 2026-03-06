@@ -208,9 +208,9 @@
     .v-text p { font-size: 1.3rem !important; line-height: 1.6; }
   }
   
-  .universal-page-title { font-size: clamp(2.5rem, 5vw, 3.5rem) !important; line-height: 1.2; }
+  .universal-page-title { font-size: clamp(5rem, 3vw, 2rem) !important; line-height: 1.2; }
   .title-row { display: block; white-space: normal; margin-bottom: 0.5rem; }
-  .intro-line { display: block; margin-bottom: 2rem; }
+  .intro-line { display: block; margin-bottom: 2rem; font-size: 2.5rem; }
   
   .interactive-word {
     font-weight: 100; cursor: pointer; display: inline-block;

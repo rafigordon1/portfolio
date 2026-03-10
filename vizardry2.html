@@ -79,7 +79,9 @@
         ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz" 
         alt="A 3D model of an astronaut" 
         ar 
-        ar-modes="webxr scene-viewer quick-look" 
+        ar-modes="scene-viewer quick-look webxr" 
+        environment-image="neutral"
+        shadow-intensity="1"
         camera-controls 
         auto-rotate>
         
@@ -93,15 +95,13 @@
         const declineBtn = document.getElementById('decline-btn');
         const viewer = document.getElementById('viewer');
 
-        // Force user interaction before triggering AR to satisfy browser security
         acceptBtn.addEventListener('click', () => {
             modal.style.display = 'none';
-            viewer.activateAR(); // Safely triggers the native AR and camera prompt
+            viewer.activateAR(); 
         });
 
         declineBtn.addEventListener('click', () => {
             modal.style.display = 'none';
-            // Modal closes, leaving the user on the 3D viewer page safely
         });
     </script>
 </body>

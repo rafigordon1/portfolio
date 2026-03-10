@@ -11,7 +11,7 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #222222;
+            background-color: #222222; /* Default background before AR is launched */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -19,13 +19,11 @@
             font-family: sans-serif;
         }
         
-        /* Ensure the viewer fills the screen */
         model-viewer {
             width: 100vw;
             height: 100vh;
         }
         
-        /* Optional: Style for the AR button */
         #ar-button {
             position: absolute;
             bottom: 30px;
@@ -54,7 +52,7 @@
         auto-rotate>
         
         <button slot="ar-button" id="ar-button">
-            View in your space
+            Launch Camera & View in AR
         </button>
         
     </model-viewer>

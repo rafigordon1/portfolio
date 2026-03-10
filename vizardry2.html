@@ -8,41 +8,73 @@
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #222222; /* Default background before AR is launched */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #222222; 
+            font-family: sans-serif; 
+        }
+        
+        model-viewer { 
+            width: 100vw; 
+            height: 100vh; 
+        }
+        
+        /* Centered Modal Overlay */
+        #permission-modal {
+            position: fixed;
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            font-family: sans-serif;
+            z-index: 9999;
         }
         
-        model-viewer {
-            width: 100vw;
-            height: 100vh;
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 80%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
+
+        .modal-content h2 { margin-top: 0; }
         
-        #ar-button {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: white;
-            border-radius: 20px;
+        .btn {
+            padding: 12px 24px;
+            margin: 10px;
             border: none;
-            padding: 10px 20px;
+            border-radius: 6px;
             font-size: 16px;
             font-weight: bold;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             cursor: pointer;
         }
+        
+        #accept-btn { background: #007bff; color: white; }
+        #decline-btn { background: #e0e0e0; color: #333; }
+        
+        /* Hide the default model-viewer AR button */
+        #default-ar-button { display: none; }
     </style>
 </head>
 <body>
 
+    <div id="permission-modal">
+        <div class="modal-content">
+            <h2>Camera Access Required</h2>
+            <p>To view this 3D model in your space, you need to grant camera access.</p>
+            <button class="btn" id="accept-btn">Allow & Launch AR</button>
+            <button class="btn" id="decline-btn">Decline</button>
+        </div>
+    </div>
+
     <model-viewer 
+        id="viewer"
         src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
         ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz" 
         alt="A 3D model of an astronaut" 
@@ -51,11 +83,26 @@
         camera-controls 
         auto-rotate>
         
-        <button slot="ar-button" id="ar-button">
-            Launch Camera & View in AR
-        </button>
+        <button slot="ar-button" id="default-ar-button"></button>
         
     </model-viewer>
 
+    <script>
+        const modal = document.getElementById('permission-modal');
+        const acceptBtn = document.getElementById('accept-btn');
+        const declineBtn = document.getElementById('decline-btn');
+        const viewer = document.getElementById('viewer');
+
+        // Force user interaction before triggering AR to satisfy browser security
+        acceptBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            viewer.activateAR(); // Safely triggers the native AR and camera prompt
+        });
+
+        declineBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            // Modal closes, leaving the user on the 3D viewer page safely
+        });
+    </script>
 </body>
 </html>
